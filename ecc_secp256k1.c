@@ -30,6 +30,7 @@ static mpz_t epn;
 
 static int ecc_check(void);
 static int moduli_3_4(void);
+static void aopexp(mpz_t x, const mpz_t a, const mpz_t e);
 
 void ecc_exit(void)
 {
@@ -50,19 +51,21 @@ void ecc_init(void)
 	mpz_init2(epn, 256);
 	mpz_import(epn, 8, 1, 4, 0, 0, EPN);
 
-	assert(ecc_check() == 0);
 	assert(mpz_probab_prime_p(epm, 64) != 0);
 	assert(mpz_probab_prime_p(epn, 64) != 0);
 	assert(moduli_3_4() == 3);
+	assert(ecc_check() == 0);
 }
 
 static int moduli_3_4(void)
 {
 	mpz_t r;
-	unsigned long rm;
+	unsigned long rm, rlen;
+	unsigned int w[8];
 
 	mpz_init2(r, 256);
-	rm = mpz_fdiv_r_ui(r, epm, 4);
+	rm = mpz_mod_ui(r, epm, 4);
+	mpz_export(w, &rlen, 1, 4, 0, 0, r);
 	mpz_clear(r);
 	return rm;
 }
@@ -73,22 +76,49 @@ static int ecc_check(void)
 	int retv;
 
 	mpz_init2(tr, 512);
-	mpz_init2(rcx, 256);
-	mpz_init2(rcy, 256);
+	mpz_init2(rcx, 512);
+	mpz_init2(rcy, 512);
 
-	mpz_mul(tr, gx, gx);
-	mpz_fdiv_r(rcx, tr, epm);
-	mpz_mul(tr, gx, rcx);
-	mpz_fdiv_r(rcx, tr, epm);
+	mpz_mul(rcx, gx, gx);
+	mpz_mod(rcx, rcx, epm);
+	mpz_mul(rcx, gx, rcx);
+	mpz_mod(rcx, rcx, epm);
 	mpz_add_ui(rcx, rcx, b);
 
-	mpz_mul(tr, gy, gy);
-	mpz_fdiv_r(rcy, tr, epm);
-
-	retv = mpz_cmp(rcx, rcy);
+	mpz_add_ui(rcy, epm, 1);
+	mpz_fdiv_q_2exp(rcy, rcy, 2);
+	aopexp(tr, rcx, rcy);
+	retv = mpz_cmp(tr, gy);
+	
 	mpz_clear(tr);
 	mpz_clear(rcx);
 	mpz_clear(rcy);
 
 	return retv;
+}
+
+static void aopexp(mpz_t x, const mpz_t a, const mpz_t e)
+{
+	unsigned int w[8], cw;
+	unsigned long rlen;
+	mpz_t fct;
+	int i, j;
+
+	mpz_init2(fct, 512);
+	mpz_set_ui(x, 1);
+	mpz_set(fct, a);
+	mpz_export(w, &rlen, 1, 4, 0, 0, e);
+	for (i = rlen-1; i >= 0; i--) {
+		cw = w[i];
+		for (j = 0; j < 32; j++) {
+			if ((cw & 1) == 1) {
+				mpz_mul(x, x, fct);
+				mpz_mod(x, x, epm);
+			}
+			cw >>= 1;
+			mpz_mul(fct, fct, fct);
+			mpz_mod(fct, fct, epm);
+		}
+	}
+	mpz_clear(fct);
 }
