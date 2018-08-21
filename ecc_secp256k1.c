@@ -27,10 +27,15 @@ static const unsigned int EPN[] = {
 	0xBFD25E8C, 0xD0364141
 };
 static mpz_t epn;
+static mpz_t sroot;
 
 static int ecc_check(void);
 static int moduli_3_4(void);
-static void aopexp(mpz_t x, const mpz_t a, const mpz_t e);
+static void a_exp(mpz_t x, const mpz_t a, const mpz_t e);
+static inline void a_sroot(mpz_t x, const mpz_t a)
+{
+	a_exp(x, a, sroot);
+}
 
 void ecc_exit(void)
 {
@@ -38,6 +43,7 @@ void ecc_exit(void)
 	mpz_clear(gx);
 	mpz_clear(gy);
 	mpz_clear(epn);
+	mpz_clear(sroot);
 }
 
 void ecc_init(void)
@@ -51,6 +57,10 @@ void ecc_init(void)
 	mpz_init2(epn, 256);
 	mpz_import(epn, 8, 1, 4, 0, 0, EPN);
 
+	mpz_init2(sroot, 256);
+	mpz_add_ui(sroot, epm, 1);
+	mpz_fdiv_q_2exp(sroot, sroot, 2);
+
 	assert(mpz_probab_prime_p(epm, 64) != 0);
 	assert(mpz_probab_prime_p(epn, 64) != 0);
 	assert(moduli_3_4() == 3);
@@ -60,44 +70,36 @@ void ecc_init(void)
 static int moduli_3_4(void)
 {
 	mpz_t r;
-	unsigned long rm, rlen;
-	unsigned int w[8];
+	int rm;
 
 	mpz_init2(r, 256);
 	rm = mpz_mod_ui(r, epm, 4);
-	mpz_export(w, &rlen, 1, 4, 0, 0, r);
 	mpz_clear(r);
 	return rm;
 }
 
 static int ecc_check(void)
 {
-	mpz_t tr, rcx, rcy;
+	mpz_t tr, rcx;
 	int retv;
 
 	mpz_init2(tr, 512);
 	mpz_init2(rcx, 512);
-	mpz_init2(rcy, 512);
 
 	mpz_mul(rcx, gx, gx);
 	mpz_mod(rcx, rcx, epm);
 	mpz_mul(rcx, gx, rcx);
 	mpz_mod(rcx, rcx, epm);
 	mpz_add_ui(rcx, rcx, b);
-
-	mpz_add_ui(rcy, epm, 1);
-	mpz_fdiv_q_2exp(rcy, rcy, 2);
-	aopexp(tr, rcx, rcy);
+	a_sroot(tr, rcx);
 	retv = mpz_cmp(tr, gy);
 	
 	mpz_clear(tr);
 	mpz_clear(rcx);
-	mpz_clear(rcy);
-
 	return retv;
 }
 
-static void aopexp(mpz_t x, const mpz_t a, const mpz_t e)
+static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 {
 	unsigned int w[8], cw;
 	unsigned long rlen;
