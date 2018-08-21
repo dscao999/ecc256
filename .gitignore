@@ -53,6 +53,7 @@ dkms.conf
 #
 #  Target executables
 #
+.*.swp
 ecc
 rnda
 sha
