@@ -59,6 +59,7 @@ static const unsigned char RCON[24] = {
 0xc6,0x97,0x35,0x6a,0xd4,0xb3,0x7d,0xfa,0xef,0xc5,0x91,0x39,0x72,0xe4,0xd3,0xbd,
 0x61,0xc2,0x9f,0x25,0x4a,0x94,0x33,0x66,0xcc,0x83,0x1d,0x3a,0x74,0xe8,0xcb,0x8d
 }*/
+static unsigned char exkeys[176];
 
 static inline unsigned char sbox(unsigned char byte)
 {
@@ -216,45 +217,43 @@ static inline void add_round_key(unsigned char stw[16],
 		stw[i] ^= w[i];
 }
 
-void aes(const unsigned char ibytes[16], unsigned char obytes[16],
-		const unsigned char w[176])
+void aes_block(const unsigned char ibytes[16], unsigned char obytes[16])
 {
 	int r;
 
 	memcpy(obytes, ibytes, 16);
-	add_round_key(obytes, w);
+	add_round_key(obytes, exkeys);
 
 	for (r = 1; r < 10; r++) {
 		sbox_bytes(obytes, 16);
 		shift_rows(obytes);
 		mix_columns(obytes);
-		add_round_key(obytes, w+r*16);
+		add_round_key(obytes, exkeys+r*16);
 	}
 	sbox_bytes(obytes, 16);
 	shift_rows(obytes);
-	add_round_key(obytes, w+160);
+	add_round_key(obytes, exkeys+160);
 }
 
-void unaes(const unsigned char ibytes[16], unsigned char obytes[16],
-		const unsigned char w[176])
+void unaes_block(const unsigned char ibytes[16], unsigned char obytes[16])
 {
 	int r;
 
 	memcpy(obytes, ibytes, 16);
-	add_round_key(obytes, w+160);
+	add_round_key(obytes, exkeys+160);
 
 	for (r = 9; r >= 1; r--) {
 		inv_shift_rows(obytes);
 		inv_sbox_bytes(obytes, 16);
-		add_round_key(obytes, w+r*16);
+		add_round_key(obytes, exkeys+r*16);
 		inv_mix_columns(obytes);
 	}
 	inv_shift_rows(obytes);
 	inv_sbox_bytes(obytes, 16);
-	add_round_key(obytes, w);
+	add_round_key(obytes, exkeys);
 }
 
-void key_expan(unsigned char keys[176])
+static void key_expan(unsigned char keys[176])
 {
 	int i, j, k;
 	unsigned char ktmp[4];
@@ -276,4 +275,10 @@ void key_expan(unsigned char keys[176])
 		keys[j+2] = keys[j-14] ^ ktmp[2];
 		keys[j+3] = keys[j-13] ^ ktmp[3];
 	}
+}
+
+void aes_init(const unsigned char key[16])
+{
+	memcpy(exkeys, key, 16);
+	key_expan(exkeys);
 }

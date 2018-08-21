@@ -16,12 +16,12 @@ struct alsa_param {
 
 int main(int argc, char *argv[])
 {
-	int retv = 0, snderr, numlen, idx;
+	int retv = 0, snderr, numlen, idx, plen;
 	struct alsa_param alsa;
-	char *buf, *block;
+	char *buf;
 	unsigned char *byte;
 	unsigned int srate, dgst[8];
-	int plen, flag, blklen, param_done, i, opt;
+	int blklen, param_done, i, opt;
 	static struct option lopt[] = {
 		{
 			.name = "block",
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 		goto exit_30;
 	}
 
-	buf = malloc(blklen+SHA_BLOCK_LEN);
+	buf = malloc(blklen);
 	if (!buf) {
 		fprintf(stderr, "Out of Memory!\n");
 		retv = 10000;
@@ -156,17 +156,7 @@ int main(int argc, char *argv[])
 		goto exit_40;
 	}
 
-	flag = SHA_START;
-	block = buf;
-	for (plen = 0; plen < blklen; plen += SHA_BLOCK_LEN) {
-		if (plen + SHA_BLOCK_LEN > blklen)
-			flag |= SHA_END;
-		sha256((unsigned char *)block, dgst, blklen, flag);
-		block += SHA_BLOCK_LEN;
-		flag = 0;
-	}
-	if (!(flag & SHA_END))
-		sha256((unsigned char *)block, dgst, blklen, SHA_END);
+	sha256((unsigned char *)buf, blklen, dgst);
 	byte = (unsigned char *)buf;
 	for (plen = 0; plen < 8; plen++) {
 		printf("%08X", dgst[plen]);

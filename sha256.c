@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 	FILE *fin;
 	unsigned char *buf;
-	unsigned long mlen, lenrem;
+	unsigned long mlen, lenrem, flen;
 	struct stat filest;
 	int nb, flag, i;
 	unsigned int dgst[8];
@@ -25,7 +25,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Bad file: %s->%s\n", argv[1], strerror(errno));
 		return 100;
 	}
-	lenrem = filest.st_size;
+	flen = filest.st_size;
+	lenrem = flen;
 
 	fin = fopen(argv[1], "rb");
 	buf = malloc(SHA_BLOCK_LEN);
@@ -41,19 +42,29 @@ int main(int argc, char *argv[])
 		mlen += nb;
 		if (nb < SHA_BLOCK_LEN)
 			flag |= SHA_END;
-		sha256(buf, dgst, mlen, flag);
+		sha256_block(buf, dgst, mlen, flag);
 		if (flag & SHA_END)
 			break;
 		flag = 0;
 		lenrem -= nb;
 	}
 	if (!(flag & SHA_END))
-		sha256(buf, dgst, mlen, SHA_END);
-	fclose(fin);
-
+		sha256_block(buf, dgst, mlen, SHA_END);
 	printf("SHA256:");
 	for (i = 0; i < 8; i++)
 		printf("%08x", dgst[i]);
 	printf("\n");
+	free(buf);
+
+	fseek(fin, 0, SEEK_SET);
+	buf = malloc(flen);
+	nb = fread(buf, 1, flen, fin);
+	sha256(buf, flen, dgst);
+	fclose(fin);
+	printf("SHA256:");
+	for (i = 0; i < 8; i++)
+		printf("%08x", dgst[i]);
+	printf("\n");
+
 	free(buf);
 }
