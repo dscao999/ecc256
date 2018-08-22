@@ -49,12 +49,12 @@ static void sha_padlen(unsigned char buf[8], unsigned long len)
 	buf[7] = len & 0x0ff;
 }
 
-static unsigned int sha_buf2word(unsigned char buf[4])
+static unsigned int sha_buf2word(const unsigned char buf[4])
 {
 	return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
 
-static void sha_block(unsigned char buf[64], unsigned int H[8])
+static void sha_block(const unsigned char buf[64], unsigned int H[8])
 {
 	unsigned int W[64];
 	int i;
@@ -97,11 +97,11 @@ static void sha_block(unsigned char buf[64], unsigned int H[8])
 	H[7] += h;
 }
 
-void sha256_block(unsigned char buf[64], unsigned int H[8], unsigned long len,
-		int flag)
+void sha256_block(struct sha256_handle *hd, const unsigned char buf[64],
+		unsigned int H[8], unsigned long len, int flag)
 {
 	int padlen, modlen;
-	unsigned char padbuf[64];
+	unsigned char *pad_block;
 
 	if (flag & SHA_START) {
 		H[0] = H0[0];
@@ -114,27 +114,30 @@ void sha256_block(unsigned char buf[64], unsigned int H[8], unsigned long len,
 		H[7] = H0[7];
 	}
 	if (flag & SHA_END) {
+		pad_block = hd->pad_block;
 		modlen = len % 64;
+		memcpy(pad_block, buf, modlen);
 		if (modlen < 56) {
 			padlen = 56 - modlen;
-			memcpy(buf+modlen, pad, padlen);
-			sha_padlen(buf+56, len*8);
-			sha_block(buf, H);
+			memcpy(pad_block+modlen, pad, padlen);
+			sha_padlen(pad_block+56, len*8);
+			sha_block(pad_block, H);
 		} else {
 			padlen = 64 - modlen;
-			memcpy(buf+modlen, pad, padlen);
-			sha_block(buf, H);
-			memset(padbuf, 0, 56);
-			sha_padlen(padbuf+56, len*8);
-			sha_block(padbuf, H);
+			memcpy(pad_block+modlen, pad, padlen);
+			sha_block(pad_block, H);
+			memset(pad_block, 0, 56);
+			sha_padlen(pad_block+56, len*8);
+			sha_block(pad_block, H);
 		}
 	} else
 		sha_block(buf, H);
 }
 
-void sha256(unsigned char *buf, unsigned long len, unsigned H[8])
+void sha256(struct sha256_handle *hd, const unsigned char *buf, unsigned long len,
+		unsigned H[8])
 {
-	unsigned char *block, last_block[SHA_BLOCK_LEN];
+	const unsigned char *block;
 	unsigned long curpos;
 	int flag;
 
@@ -142,12 +145,11 @@ void sha256(unsigned char *buf, unsigned long len, unsigned H[8])
 	block = buf;
 	curpos = 0;
 	while (curpos + SHA_BLOCK_LEN <= len) {
-		sha256_block(block, H, len, flag);
+		sha256_block(hd, block, H, len, flag);
 		block += SHA_BLOCK_LEN;
 		curpos += SHA_BLOCK_LEN;
 		flag = 0;
 	}
 	flag |= SHA_END;
-	memcpy(last_block, block, len - curpos);
-	sha256_block(last_block, H, len, flag);
+	sha256_block(hd, block, H, len, flag);
 }

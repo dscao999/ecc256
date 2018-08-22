@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
 	unsigned char *byte;
 	unsigned int srate, dgst[8];
 	int blklen, param_done, i, opt;
+	struct sha256_buf *shabuf;
 	static struct option lopt[] = {
 		{
 			.name = "block",
@@ -156,7 +157,9 @@ int main(int argc, char *argv[])
 		goto exit_40;
 	}
 
-	sha256((unsigned char *)buf, blklen, dgst);
+	shabuf = sha256_init();
+	sha256(shabuf, (unsigned char *)buf, blklen, dgst);
+	sha256_exit(shabuf);
 	byte = (unsigned char *)buf;
 	for (plen = 0; plen < 8; plen++) {
 		printf("%08X", dgst[plen]);

@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
 	struct stat filest;
 	int nb, flag, i;
 	unsigned int dgst[8];
+	struct sha256_handle *hd;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s file\n", argv[0]);
@@ -30,6 +31,7 @@ int main(int argc, char *argv[])
 
 	fin = fopen(argv[1], "rb");
 	buf = malloc(SHA_BLOCK_LEN);
+	hd = sha256_init();
 
 	flag = SHA_START;
 	mlen = 0;
@@ -42,15 +44,15 @@ int main(int argc, char *argv[])
 		mlen += nb;
 		if (nb < SHA_BLOCK_LEN)
 			flag |= SHA_END;
-		sha256_block(buf, dgst, mlen, flag);
+		sha256_block(hd, buf, dgst, mlen, flag);
 		if (flag & SHA_END)
 			break;
 		flag = 0;
 		lenrem -= nb;
 	}
 	if (!(flag & SHA_END))
-		sha256_block(buf, dgst, mlen, SHA_END);
-	printf("SHA256:");
+		sha256_block(hd, buf, dgst, mlen, SHA_END);
+	printf("SHA256(%s)= ", argv[1]);
 	for (i = 0; i < 8; i++)
 		printf("%08x", dgst[i]);
 	printf("\n");
@@ -59,12 +61,13 @@ int main(int argc, char *argv[])
 	fseek(fin, 0, SEEK_SET);
 	buf = malloc(flen);
 	nb = fread(buf, 1, flen, fin);
-	sha256(buf, flen, dgst);
+	sha256(hd, buf, flen, dgst);
 	fclose(fin);
-	printf("SHA256:");
+	printf("SHA256(%s)= ", argv[1]);
 	for (i = 0; i < 8; i++)
 		printf("%08x", dgst[i]);
 	printf("\n");
 
 	free(buf);
+	sha256_exit(hd);
 }
