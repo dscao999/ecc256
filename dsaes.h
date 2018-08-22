@@ -2,6 +2,8 @@
 #define AES_DSCAO__
 #include <stdlib.h>
 
+#define AES128_BLOCK_LEN	16
+
 struct aeskey {
 	unsigned char w[176];
 };
@@ -17,9 +19,9 @@ void aes_block(const struct aeskey *w,
 void unaes_block(const struct aeskey *w,
 		const unsigned char ibytes[16], unsigned char obytes[16]);
 
-void aes(const struct aeskey *w,
+int aes(const struct aeskey *w,
 		const unsigned char *buf, unsigned char *obuf, int len);
-void unaes(const struct aeskey *w,
+int unaes(const struct aeskey *w,
 		const unsigned char *buf, unsigned char *obuf, int len);
 
 #endif /* AES_DSCAO__ */

@@ -1,5 +1,5 @@
 #include <string.h>
-#include "aes.h"
+#include "dsaes.h"
 
 static const unsigned char S[256] = {
 0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
@@ -272,4 +272,44 @@ struct aeskey * aes_init(const unsigned char key[16])
 	memcpy(w->w, key, 16);
 	key_expan(w->w);
 	return w;
+}
+
+int aes(const struct aeskey *key, const unsigned char *ibuf,
+		unsigned char *obuf, int len)
+{
+	const unsigned char *blkin;
+	unsigned char *blkout;
+	int pos;
+
+	if ((len % AES128_BLOCK_LEN) != 0)
+		return -1;
+
+	blkin = ibuf;
+	blkout = obuf;
+	for (pos = 0; pos + AES128_BLOCK_LEN <= len; pos += AES128_BLOCK_LEN) {
+		aes_block(key, blkin, blkout);
+		blkin += AES128_BLOCK_LEN;
+		blkout += AES128_BLOCK_LEN;
+	}
+	return 0;
+}
+
+int unaes(const struct aeskey *key, const unsigned char *ibuf,
+		unsigned char *obuf, int len)
+{
+	const unsigned char *blkin;
+	unsigned char *blkout;
+	int pos;
+
+	if ((len % AES128_BLOCK_LEN) != 0)
+		return -1;
+
+	blkin = ibuf;
+	blkout = obuf;
+	for (pos = 0; pos + AES128_BLOCK_LEN <= len; pos += AES128_BLOCK_LEN) {
+		unaes_block(key, blkin, blkout);
+		blkin += AES128_BLOCK_LEN;
+		blkout += AES128_BLOCK_LEN;
+	}
+	return 0;
 }
