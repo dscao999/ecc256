@@ -58,16 +58,20 @@ int main(int argc, char *argv[])
 	printf("\n");
 	free(buf);
 
-	fseek(fin, 0, SEEK_SET);
-	buf = malloc(flen);
-	nb = fread(buf, 1, flen, fin);
-	sha256(hd, buf, flen, dgst);
-	fclose(fin);
-	printf("SHA256(%s)= ", argv[1]);
-	for (i = 0; i < 8; i++)
-		printf("%08x", dgst[i]);
-	printf("\n");
+	if (flen < 102400) {
+		fseek(fin, 0, SEEK_SET);
+		buf = malloc(flen);
+		nb = fread(buf, 1, flen, fin);
+		sha256(hd, buf, flen, dgst);
+		fclose(fin);
+		printf("SHA256(%s)= ", argv[1]);
+		for (i = 0; i < 8; i++)
+			printf("%08x", dgst[i]);
+		printf("\n");
 
-	free(buf);
+		free(buf);
+	}
 	sha256_exit(hd);
+
+	return 0;
 }

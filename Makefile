@@ -6,7 +6,7 @@ CFLAGS += -g
 
 all:	rnda sha ecc aes crc
 
-rnda: capture.o digest.o
+rnda: capture.o alsa_random.o digest.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
 
 sha: sha256.o digest.o
