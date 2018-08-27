@@ -4,7 +4,7 @@
 LDFLAGS += -g
 CFLAGS += -g
 
-all:	rnda sha ecc aes
+all:	rnda sha ecc aes crc
 
 rnda: capture.o digest.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
@@ -19,6 +19,9 @@ ecc: ecc.o ecc_secp256k1.o
 	$(LINK.o) $(LDFLAGS) $^ -lgmp -o $@
 
 aes: aes.o dsaes.o
+	$(LINK.o) $(LDFLAGS) $^ -o $@
+
+crc: crc.o dscrc.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 release: rnda sha ecc
