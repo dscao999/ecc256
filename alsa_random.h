@@ -11,7 +11,7 @@ struct alsa_param {
 	snd_pcm_hw_params_t *hwparams;
 	char *pcm_name;
 	char *buf;
-	int buflen;
+	int buflen, paused;
 };
 
 struct alsa_param * alsa_init(int len);

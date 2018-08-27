@@ -96,6 +96,7 @@ struct alsa_param * alsa_init(int len)
 		goto err_40;
 	}
 	alsa->buflen = len;
+	alsa->paused = 0;
 
 	snd_pcm_hw_params_free(alsa->hwparams);
 	return alsa;
@@ -117,6 +118,11 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 {
 	int snderr, retv;
 
+	if (alsa->paused) {
+		snderr = snd_pcm_pause(alsa->pcm_handle, 0);
+		if (snderr)
+			return snderr;
+	}
 	retv = 0;
 	snderr = snd_pcm_readi(alsa->pcm_handle, alsa->buf, alsa->buflen/4);
 	if (snderr != alsa->buflen/4) {
@@ -124,6 +130,9 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 		fprintf(stderr, "Warning! Audio read failed: %s\n",
 			snd_strerror(snderr));
 	}
+	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
+	if (snderr == 0)
+		alsa->paused = 1;
 	sha256(alsa->sha, (unsigned char *)alsa->buf, alsa->buflen, dgst);
 	return retv;
 }
