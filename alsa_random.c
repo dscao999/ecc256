@@ -97,6 +97,9 @@ struct alsa_param * alsa_init(int len)
 	}
 	alsa->buflen = len;
 	alsa->paused = 0;
+	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
+	if (snderr == 0)
+		alsa->paused = 1;
 
 	snd_pcm_hw_params_free(alsa->hwparams);
 	return alsa;
