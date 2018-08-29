@@ -4,6 +4,8 @@
 #include <alsa/asoundlib.h>
 #include "digest.h"
 
+#define SAMPLE_HZ 44100
+
 struct alsa_param {
 	struct sha256_handle *sha;
 	snd_pcm_t *pcm_handle;

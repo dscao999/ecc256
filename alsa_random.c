@@ -63,7 +63,7 @@ struct alsa_param * alsa_init(int len)
 				snd_strerror(snderr));
 		goto err_40;
 	}
-	srate = 44100;
+	srate = SAMPLE_HZ;
 	snderr = snd_pcm_hw_params_set_rate_near(alsa->pcm_handle, alsa->hwparams,
 				&srate, 0);
 	if (snderr < 0) {
@@ -125,6 +125,7 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 		snderr = snd_pcm_pause(alsa->pcm_handle, 0);
 		if (snderr)
 			return snderr;
+		alsa->paused = 0;
 	}
 	retv = 0;
 	snderr = snd_pcm_readi(alsa->pcm_handle, alsa->buf, alsa->buflen/4);

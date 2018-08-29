@@ -15,8 +15,8 @@ sha: sha256.o digest.o
 clean:
 	rm -f *.o rnda sha ecc aes crc
 
-ecc: ecc.o ecc_secp256k1.o
-	$(LINK.o) $(LDFLAGS) $^ -lgmp -o $@
+ecc: ecc.o ecc_secp256k1.o alsa_random.o digest.o
+	$(LINK.o) $(LDFLAGS) $^ -lgmp -lasound -o $@
 
 aes: aes.o dsaes.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@

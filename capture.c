@@ -66,7 +66,10 @@ int main(int argc, char *argv[])
 
 	count = 0;
 	do {
-		alsa_random(alsa, dgst);
+		if (alsa_random(alsa, dgst) != 0) {
+			fprintf(stderr, "Failed to get an random number!\n");
+			break;
+		}
 		byte = buf;
 		for (plen = 0; plen < 8; plen++) {
 			printf("%08X", dgst[plen]);
