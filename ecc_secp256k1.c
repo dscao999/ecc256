@@ -284,12 +284,13 @@ static void point_x_num(struct curve_point *R, mpz_t num)
 static void compute_public(struct ecc_key *ecckey, mpz_t x)
 {
 	struct curve_point P;
-	size_t count;
+	size_t count_x, count_y;
 
 	point_init(&P);
 	point_x_num(&P, x);
-	mpz_export(ecckey->px, &count, 1, 4, 0, 0, P.x);
-	mpz_export(ecckey->py, &count, 1, 4, 0, 0, P.y);
+	mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
+	mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
+	assert(count_x == 8 && count_y == 8);
 	point_exit(&P);
 }
 
@@ -299,7 +300,6 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 	struct alsa_param *alsa;
 	mpz_t x;
 
-	retv = 0;
 	secs = secs <= 0? 1 : secs;
 	len = secs * SAMPLE_HZ * 4;
 	alsa = alsa_init(len);
@@ -308,7 +308,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 	mpz_init2(x, 256);
 
 	do {
-		alsa_random(alsa, (unsigned int *)ecckey->pr);
+		retv = alsa_random(alsa, ecckey->pr);
 		mpz_import(x, 8, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0);
 
@@ -318,4 +318,14 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 	alsa_exit(alsa);
 
 	return retv;
+}
+
+void ecc_comkey(struct ecc_key *ecckey)
+{
+	mpz_t x;
+
+	mpz_init2(x, 256);
+	mpz_import(x, 8, 1, 4, 0, 0, ecckey->pr);
+	compute_public(ecckey, x);
+	mpz_clear(x);
 }
