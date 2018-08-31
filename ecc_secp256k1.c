@@ -13,15 +13,36 @@ struct curve_point {
 
 static void point_x_num(struct curve_point *R, mpz_t num);
 
-static void point_init(struct curve_point *p)
+static inline void point_init(struct curve_point *p)
 {
 	mpz_init2(p->x, 512);
 	mpz_init2(p->y, 512);
 }
-static void point_exit(struct curve_point *p)
+static inline void point_exit(struct curve_point *p)
 {
 	mpz_clear(p->x);
 	mpz_clear(p->y);
+}
+
+static inline
+void point_set(struct curve_point *p, const struct curve_point *q)
+{
+	mpz_set(p->x, q->x);
+	mpz_set(p->y, q->y);
+}
+
+static inline
+void point_set_ui(struct curve_point *p, unsigned int x, unsigned int y)
+{
+	mpz_set_ui(p->x, x);
+	mpz_set_ui(p->y, y);
+}
+
+static inline void point_assign(struct curve_point *p,
+		const unsigned int px[8], const unsigned int py[8])
+{
+	mpz_import(p->x, 8, 1, 4, 0, 0, px);
+	mpz_import(p->y, 8, 1, 4, 0, 0, py);
 }
 
 static const unsigned int EPM[] = {
@@ -70,8 +91,7 @@ void ecc_init(void)
 	mpz_init2(epm, 256);
 	mpz_import(epm, 8, 1, 4, 0, 0, EPM);
 	point_init(&G);
-	mpz_import(G.x, 8, 1, 4, 0, 0, GX);
-	mpz_import(G.y, 8, 1, 4, 0, 0, GY);
+	point_assign(&G, GX, GY);
 	mpz_init2(epn, 256);
 	mpz_import(epn, 8, 1, 4, 0, 0, EPN);
 
@@ -221,20 +241,16 @@ static void point_add(struct curve_point *R, const struct curve_point *P,
 {
 	mpz_t lambd;
 
-	if (mpz_cmp_ui(P->x, 0) == 0 && mpz_cmp_ui(P->y, 0) == 0) {
-		mpz_set(R->x, Q->x);
-		mpz_set(R->y, Q->y);
-	} else if (mpz_cmp_ui(Q->x, 0) == 0 && mpz_cmp_ui(Q->y, 0) == 0) {
-		mpz_set(R->x, P->x);
-		mpz_set(R->y, P->y);
-	} else {
+	if (mpz_cmp_ui(P->x, 0) == 0 && mpz_cmp_ui(P->y, 0) == 0)
+		point_set(R, Q);
+	else if (mpz_cmp_ui(Q->x, 0) == 0 && mpz_cmp_ui(Q->y, 0) == 0)
+		point_set(R, P);
+	else {
 		mpz_init2(lambd, 512);
 		if (point_lambd(lambd, P, Q))
 			point_add_lambd(R, lambd, P, Q);
-		else {
-			mpz_set_ui(R->x, 0);
-			mpz_set_ui(R->y, 0);
-		}
+		else
+			point_set_ui(R, 0, 0);
 		mpz_clear(lambd);
 	}
 }
@@ -257,11 +273,9 @@ static void point_x_num_ng(struct curve_point *R, mpz_t num,
 	size_t count;
 	int i, j;
 
-	mpz_set_ui(R->x, 0);
-	mpz_set_ui(R->y, 0);
 	point_init(&S);
-	mpz_set(S.x, P->x);
-	mpz_set(S.y, P->y);
+	point_set(&S, P);
+	point_set_ui(R, 0, 0);
 
 	mpz_export(x, &count, 1, 4, 0, 0, num);
 	point_init(&tp);
@@ -270,12 +284,10 @@ static void point_x_num_ng(struct curve_point *R, mpz_t num,
 		for (j = 0; j < 32; j++) {
 			if (cnum & 1) {
 				point_add(&tp, R, &S);
-				mpz_set(R->x, tp.x);
-				mpz_set(R->y, tp.y);
+				point_set(R, &tp);
 			}
 			point_double(&tp, &S);
-			mpz_set(S.x, tp.x);
-			mpz_set(S.y, tp.y);
+			point_set(&S, &tp);
 			cnum >>= 1;
 		}
 	}
@@ -283,17 +295,9 @@ static void point_x_num_ng(struct curve_point *R, mpz_t num,
 	point_exit(&S);
 }
 
-static void point_x_num(struct curve_point *R, mpz_t num)
+static inline void point_x_num(struct curve_point *R, mpz_t num)
 {
-	struct curve_point P;
-
-	point_init(&P);
-	mpz_set(P.x, G.x);
-	mpz_set(P.y, G.y);
-
-	point_x_num_ng(R, num, &P);
-
-	point_exit(&P);
+	point_x_num_ng(R, num, &G);
 }
 
 static void compute_public(struct ecc_key *ecckey, mpz_t x)
@@ -359,6 +363,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	sha = sha256_init();
 	sha256(sha, mesg, len, dgst);
 	sha256_exit(sha);
+
 	mpz_init2(dst, 256);
 	mpz_import(dst, 8, 1, 4, 0, 0, dgst);
 	mpz_init2(skey, 256);
@@ -367,6 +372,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_init2(s, 512);
 	point_init(&kg);
 	mpz_init2(k, 256);
+	mpz_init2(k_inv, 256);
 	mpz_init2(r, 256);
 	alsa = alsa_init(1);
 
@@ -393,6 +399,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_export(sig->sig_r, &count_r, 1, 4, 0, 0, r);
 	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 
 	assert(count_r != 0 && count_s != 0);
+	point_exit(&kg);
+	mpz_clears(k, r, dst, k_inv, s, skey, NULL);
 }
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
@@ -431,8 +439,7 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_mod(u2, u2, epn);
 
 	point_init(&H);
-	mpz_import(H.x, 8, 1, 4, 0, 0, key->px);
-	mpz_import(H.y, 8, 1, 4, 0, 0, key->py);
+	point_assign(&H, key->px, key->py);
 	point_init(&tp);
 	point_x_num_ng(&tp, u2, &H);
 	
@@ -443,5 +450,9 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_mod(w, H.x, epn);
 
 	retv = mpz_cmp(w, r);
+	mpz_clears(X, s, r, w, u1, u2, NULL);
+	point_exit(&H);
+	point_exit(&Q);
+	point_exit(&tp);
 	return retv == 0;
 }

@@ -31,7 +31,7 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action)
 			return 4;
 		}
 		ecc_genkey(mkey, 5);
-		key_crc = crc32((unsigned char *)&mkey, sizeof(struct ecc_key));
+		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
 		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
 		fwrite(&key_crc, sizeof(key_crc), 1, ko);
 		fclose(ko);
@@ -243,6 +243,11 @@ int main(int argc, char *argv[])
 			assert(0);
 		}
 	} while (fin == 0);
+	if (optind != argc && optind + 1 != argc) {
+		fprintf(stderr, "Usage: %s -k keyfile [-g] [-s|-v] signfile"
+				" file\n", argv[0]);
+		return 10;
+	}
 
 	buffer = malloc(sizeof(struct ecc_key));
 	if (!buffer) {
