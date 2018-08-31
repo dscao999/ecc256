@@ -249,36 +249,51 @@ static void point_double(struct curve_point *R, const struct curve_point *P)
 	mpz_clear(lambd);
 }
 
-static void point_x_num(struct curve_point *R, mpz_t num)
+static void point_x_num_ng(struct curve_point *R, mpz_t num,
+		const struct curve_point *P)
 {
-	struct curve_point P, tp;
+	struct curve_point tp, S;
 	unsigned int x[8], cnum;
-	int i, j;
 	size_t count;
-
-	point_init(&tp);
-	point_init(&P);
+	int i, j;
 
 	mpz_set_ui(R->x, 0);
 	mpz_set_ui(R->y, 0);
-	mpz_set(P.x, G.x);
-	mpz_set(P.y, G.y);
-	mpz_export(x, &count, 1, 4, 0, 0, num);
+	point_init(&S);
+	mpz_set(S.x, P->x);
+	mpz_set(S.y, P->y);
 
-	for (i = 7; i >= 0; i--) {
+	mpz_export(x, &count, 1, 4, 0, 0, num);
+	point_init(&tp);
+	for (i = count-1; i >= 0; i--) {
 		cnum = x[i];
 		for (j = 0; j < 32; j++) {
 			if (cnum & 1) {
-				point_add(&tp, R, &P);
+				point_add(&tp, R, &S);
 				mpz_set(R->x, tp.x);
 				mpz_set(R->y, tp.y);
 			}
-			point_double(&tp, &P);
-			mpz_set(P.x, tp.x);
-			mpz_set(P.y, tp.y);
+			point_double(&tp, &S);
+			mpz_set(S.x, tp.x);
+			mpz_set(S.y, tp.y);
 			cnum >>= 1;
 		}
 	}
+	point_exit(&tp);
+	point_exit(&S);
+}
+
+static void point_x_num(struct curve_point *R, mpz_t num)
+{
+	struct curve_point P;
+
+	point_init(&P);
+	mpz_set(P.x, G.x);
+	mpz_set(P.y, G.y);
+
+	point_x_num_ng(R, num, &P);
+
+	point_exit(&P);
 }
 
 static void compute_public(struct ecc_key *ecckey, mpz_t x)
@@ -290,7 +305,7 @@ static void compute_public(struct ecc_key *ecckey, mpz_t x)
 	point_x_num(&P, x);
 	mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
 	mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
-	assert(count_x == 8 && count_y == 8);
+	assert(count_x != 0 && count_y != 0);
 	point_exit(&P);
 }
 
@@ -328,4 +343,105 @@ void ecc_comkey(struct ecc_key *ecckey)
 	mpz_import(x, 8, 1, 4, 0, 0, ecckey->pr);
 	compute_public(ecckey, x);
 	mpz_clear(x);
+}
+
+void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
+		const unsigned char *mesg, int len)
+{
+	struct sha256_handle *sha;
+	unsigned int dgst[8];
+	unsigned int kx[8];
+	struct alsa_param *alsa;
+	mpz_t k, r, dst, k_inv, s, skey;
+	struct curve_point kg;
+	size_t count_r, count_s;
+
+	sha = sha256_init();
+	sha256(sha, mesg, len, dgst);
+	sha256_exit(sha);
+	mpz_init2(dst, 256);
+	mpz_import(dst, 8, 1, 4, 0, 0, dgst);
+	mpz_init2(skey, 256);
+	mpz_import(skey, 8, 1, 4, 0, 0, key->pr);
+
+	mpz_init2(s, 512);
+	point_init(&kg);
+	mpz_init2(k, 256);
+	mpz_init2(r, 256);
+	alsa = alsa_init(1);
+
+	do {
+		do {
+			alsa_random(alsa, kx);
+			mpz_import(k, 8, 1, 4, 0, 0, kx);
+		} while (mpz_cmp(k, epn) >= 0);
+
+		point_x_num(&kg, k);
+		mpz_mod(r, kg.x, epn);
+		if (mpz_cmp_ui(r, 0) == 0)
+			continue;
+		mpz_invert(k_inv, k, epn);
+
+		mpz_mul(s, skey, r);
+		mpz_add(s, s, dst);
+		mpz_mul(s, k_inv, s);
+		mpz_mod(s, s, epn);
+	} while (mpz_cmp_ui(s, 0) == 0);
+
+	alsa_exit(alsa);
+
+	mpz_export(sig->sig_r, &count_r, 1, 4, 0, 0, r);
+	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 
+	assert(count_r != 0 && count_s != 0);
+}
+
+int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
+		const unsigned char *mesg, int len)
+{
+	struct sha256_handle *sha;
+	unsigned int dgst[8];
+	mpz_t X, s, r;
+	mpz_t w, u1, u2;
+	struct curve_point H, Q, tp;
+	int retv;
+
+	retv = 0;
+	mpz_init2(s, 256);
+	mpz_init2(r, 256);
+	mpz_import(s, 8, 1, 4, 0, 0, sig->sig_s);
+	mpz_import(r, 8, 1, 4, 0, 0, sig->sig_r);
+	if (mpz_cmp(s, epn) >= 0 || mpz_cmp(r, epn) >= 0)
+		return 0;
+
+	sha = sha256_init();
+	sha256(sha, mesg, len, dgst);
+	sha256_exit(sha);
+
+	mpz_init2(X, 256);
+	mpz_import(X, 8, 1, 4, 0, 0, dgst);
+
+	mpz_init2(w, 256);
+	mpz_invert(w, s, epn);
+
+	mpz_init2(u1, 512);
+	mpz_mul(u1, X, w);
+	mpz_mod(u1, u1, epn);
+	mpz_init2(u2, 512);
+	mpz_mul(u2, r, w);
+	mpz_mod(u2, u2, epn);
+
+	point_init(&H);
+	mpz_import(H.x, 8, 1, 4, 0, 0, key->px);
+	mpz_import(H.y, 8, 1, 4, 0, 0, key->py);
+	point_init(&tp);
+	point_x_num_ng(&tp, u2, &H);
+	
+	point_init(&Q);
+	point_x_num(&Q, u1);
+
+	point_add(&H, &tp, &Q);
+	mpz_mod(w, H.x, epn);
+
+	retv = mpz_cmp(w, r);
+	return retv == 0;
 }
