@@ -202,19 +202,20 @@ int main(int argc, char *argv[])
 	struct ecc_key *mkey;
 	void *buffer;
 	int fin, opt, action, retv;
-	const char *keyfile, *msgfile, *sigfile;
+	const char *keyfile, *msgfile;
+	char *sigfile;
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
 	retv = 0;
-	keyfile = "ecc_key.dat";
+	keyfile = NULL;
 	msgfile = NULL;
 	sigfile = NULL;
 	opterr = 0;
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":k:s:v:g");
+		opt = getopt(argc, argv, ":k:svg");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -230,11 +231,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			action |= SIGN_FILE;
-			sigfile = optarg;
 			break;
 		case 'v':
 			action |= SIG_VERIFY;
-			sigfile = optarg;
 			break;
 		case 'g':
 			action |= GEN_KEY;
@@ -243,30 +242,33 @@ int main(int argc, char *argv[])
 			assert(0);
 		}
 	} while (fin == 0);
-	if (optind != argc && optind + 1 != argc) {
-		fprintf(stderr, "Usage: %s -k keyfile [-g] [-s|-v] signfile"
-				" file\n", argv[0]);
+	if (!keyfile) {
+		fprintf(stderr, "A key file must be supplied!\n");
+		return 20;
+	}
+	msgfile = argv[optind];
+	if (!msgfile && (action & (SIG_VERIFY|SIGN_FILE))) {
+		fprintf(stderr, "Usage: %s -k keyfile [-g] [-s|-v]"
+				" file [file.sig]\n", argv[0]);
 		return 10;
 	}
-
-	buffer = malloc(sizeof(struct ecc_key));
+	buffer = malloc(sizeof(struct ecc_key)+strlen(msgfile)+5);
 	if (!buffer) {
 		fprintf(stderr, "Out of Memory!\n");
 		return 10000;
 	}
+	if (optind+1 < argc)
+		sigfile = argv[optind+1];
+	else {
+		sigfile = buffer + sizeof(struct ecc_key);
+		strcpy(sigfile, msgfile);
+		strcat(sigfile, ".sig");
+	}
+
 	mkey = buffer;
 	ecc_init();
 
 	key_process(mkey, keyfile, action);
-
-	msgfile = argv[optind];
-	if (msgfile == NULL) {
-		if (action & (SIG_VERIFY|SIGN_FILE)) {
-			fprintf(stderr, "Missing File!\n");
-			retv = 36;
-		}
-		goto exit_10;
-	}
 
 	if (action & SIGN_FILE)
 		sign_file(msgfile, mkey, sigfile);
@@ -275,6 +277,6 @@ int main(int argc, char *argv[])
 		if (!verify_file(msgfile, mkey, sigfile))
 			fprintf(stderr, "Signuature verification failed!\n");
 
-exit_10:
+	free(buffer);
 	return retv;
 }
