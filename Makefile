@@ -4,7 +4,7 @@
 LDFLAGS += -g
 CFLAGS += -g
 
-all:	rnda sha ecc aes crc
+all:	rnda sha ecc aes crc crctbl
 
 rnda: capture.o alsa_random.o digest.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
@@ -22,6 +22,9 @@ aes: aes.o dsaes.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 crc: crc.o dscrc.o
+	$(LINK.o) $(LDFLAGS) $^ -o $@
+
+crctbl: crc_table.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 release: rnda sha ecc

@@ -45,7 +45,7 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action)
 		fread(mkey, sizeof(struct ecc_key), 1, ko);
 		fread(&key_crc, sizeof(key_crc), 1, ko);
 		fclose(ko);
-		if (!crc32_confirm((unsigned char *)mkey,
+		if (!crc32_check((unsigned char *)mkey,
 				sizeof(struct ecc_key), key_crc)) {
 			fprintf(stderr, "Key corrupted!\n");
 			return 16;
@@ -182,7 +182,7 @@ static int verify_file(const char *msgfile, const struct ecc_key *mkey,
 	fread(&crc, sizeof(crc), 1, mi);
 	fclose(mi);
 	mi = NULL;
-	if (!crc32_confirm((unsigned char *)sig, sizeof(struct ecc_sig), crc)) {
+	if (!crc32_check((unsigned char *)sig, sizeof(struct ecc_sig), crc)) {
 		fprintf(stderr, "Corrupted signature!\n");
 		goto exit_20;
 	}
