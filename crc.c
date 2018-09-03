@@ -27,9 +27,16 @@ int main(int argc, char *argv[])
 	if ((len & 0x0f) != 0)
 		printf("\n");
 
+	crc = crc8(dat, len);
+	printf("CRC8: %02X\n", crc);
+	dat[len] = crc & 0x0ff;
+	crc = crc8(dat, len+1);
+	printf("CRC8: %02X\n", crc);
+	printf("\n");
+
 	crc = crc16(dat, len);
 	printf("CRC16: %04X\n", crc);
-	dat[len] = crc >> 8;
+	dat[len] = (crc >> 8) & 0x0ff;
 	dat[len+1] = crc & 0x0ff;
 	crc = crc16(dat, len+2);
 	printf("CRC16: %04X\n", crc);

@@ -170,11 +170,11 @@ unsigned int crc16(const unsigned char *bytes, int len)
 	int i, idx;
 
 	for (cb = bytes, i = 0; i < len; i++, cb++) {
-		idx = (crc >> 8) ^ (*cb);
+		idx = ((crc >> 8) ^ (*cb)) & 0x0ff;
 		crc = (crc << 8) ^ crc16_table[idx];
 	}
 
-	return crc;
+	return crc & 0x0ffff;
 }
 
 unsigned int crc32(const unsigned char *bytes, int len)
