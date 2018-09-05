@@ -1,3 +1,7 @@
+/*
+ * CRC8, CRC16 and CRC32 algothim implementation, Dashi Cao dscao999@hotmail.com caods1@lenovo.com
+ *
+ */
 #ifndef CRC_DSCAO__
 #define CRC_DSCAO__
 unsigned int crc8(const unsigned char *bytes, int len);

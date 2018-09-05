@@ -1,14 +1,22 @@
+/*
+ * Elliptic Curve Cryptography
+ * Implementation of secp256k1, y exp 2 = x exp 3 + 7.
+ * Dashi Cao, dscao999@hotmail.com, caods1@lenovo.com
+ *
+ */
 #ifndef ECC_SECP256K1_DSCAO__
 #define ECC_SECP256K1_DSCAO__
 
+#define ECCKEY_LEN	8
+
 struct ecc_key {
-	unsigned int pr[8];
-	unsigned int px[8];
-	unsigned int py[8];
+	unsigned int pr[ECCKEY_LEN];
+	unsigned int px[ECCKEY_LEN];
+	unsigned int py[ECCKEY_LEN];
 };
 struct ecc_sig {
-	unsigned int sig_r[8];
-	unsigned int sig_s[8];
+	unsigned int sig_r[ECCKEY_LEN];
+	unsigned int sig_s[ECCKEY_LEN];
 };
 
 void ecc_init(void);

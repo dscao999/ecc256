@@ -1,5 +1,8 @@
 /*
- * y exp 2 = x exp 3 + 7
+ * Elliptic Curve Cryptography
+ * Implementation of secp256k1, y exp 2 = x exp 3 + 7.
+ * Dashi Cao, dscao999@hotmail.com, caods1@lenovo.com
+ *
  */
 #include <gmp.h>
 #include <assert.h>
@@ -39,10 +42,11 @@ void point_set_ui(struct curve_point *p, unsigned int x, unsigned int y)
 }
 
 static inline void point_assign(struct curve_point *p,
-		const unsigned int px[8], const unsigned int py[8])
+		const unsigned int px[ECCKEY_LEN],
+		const unsigned int py[ECCKEY_LEN])
 {
-	mpz_import(p->x, 8, 1, 4, 0, 0, px);
-	mpz_import(p->y, 8, 1, 4, 0, 0, py);
+	mpz_import(p->x, ECCKEY_LEN, 1, 4, 0, 0, px);
+	mpz_import(p->y, ECCKEY_LEN, 1, 4, 0, 0, py);
 }
 
 static const unsigned int EPM[] = {
@@ -89,11 +93,11 @@ void ecc_exit(void)
 void ecc_init(void)
 {
 	mpz_init2(epm, 256);
-	mpz_import(epm, 8, 1, 4, 0, 0, EPM);
+	mpz_import(epm, ECCKEY_LEN, 1, 4, 0, 0, EPM);
 	point_init(&G);
 	point_assign(&G, GX, GY);
 	mpz_init2(epn, 256);
-	mpz_import(epn, 8, 1, 4, 0, 0, EPN);
+	mpz_import(epn, ECCKEY_LEN, 1, 4, 0, 0, EPN);
 
 	mpz_init2(sroot, 256);
 	mpz_add_ui(sroot, epm, 1);
@@ -121,7 +125,7 @@ static int ecc_check(void)
 	mpz_t tr, rcx;
 	int retv;
 	struct curve_point point;
-	unsigned int x[8], y[8];
+	unsigned int x[ECCKEY_LEN], y[ECCKEY_LEN];
 	size_t count_x, count_y;
 
 	mpz_init2(tr, 512);
@@ -150,7 +154,7 @@ static int ecc_check(void)
 
 static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 {
-	unsigned int w[8], cw;
+	unsigned int w[ECCKEY_LEN], cw;
 	unsigned long rlen;
 	mpz_t fct;
 	int i, j;
@@ -269,7 +273,7 @@ static void point_x_num_ng(struct curve_point *R, mpz_t num,
 		const struct curve_point *P)
 {
 	struct curve_point tp, S;
-	unsigned int x[8], cnum;
+	unsigned int x[ECCKEY_LEN], cnum;
 	size_t count;
 	int i, j;
 
@@ -328,7 +332,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 
 	do {
 		retv = alsa_random(alsa, ecckey->pr);
-		mpz_import(x, 8, 1, 4, 0, 0, ecckey->pr);
+		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0);
 
 	compute_public(ecckey, x);
@@ -344,7 +348,7 @@ void ecc_comkey(struct ecc_key *ecckey)
 	mpz_t x;
 
 	mpz_init2(x, 256);
-	mpz_import(x, 8, 1, 4, 0, 0, ecckey->pr);
+	mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
 	compute_public(ecckey, x);
 	mpz_clear(x);
 }
@@ -353,8 +357,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len)
 {
 	struct sha256_handle *sha;
-	unsigned int dgst[8];
-	unsigned int kx[8];
+	unsigned int dgst[ECCKEY_LEN];
+	unsigned int kx[ECCKEY_LEN];
 	struct alsa_param *alsa;
 	mpz_t k, r, dst, k_inv, s, skey;
 	struct curve_point kg;
@@ -365,9 +369,9 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	sha256_exit(sha);
 
 	mpz_init2(dst, 256);
-	mpz_import(dst, 8, 1, 4, 0, 0, dgst);
+	mpz_import(dst, ECCKEY_LEN, 1, 4, 0, 0, dgst);
 	mpz_init2(skey, 256);
-	mpz_import(skey, 8, 1, 4, 0, 0, key->pr);
+	mpz_import(skey, ECCKEY_LEN, 1, 4, 0, 0, key->pr);
 
 	mpz_init2(s, 512);
 	point_init(&kg);
@@ -379,7 +383,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	do {
 		do {
 			alsa_random(alsa, kx);
-			mpz_import(k, 8, 1, 4, 0, 0, kx);
+			mpz_import(k, ECCKEY_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 
 		point_x_num(&kg, k);
@@ -407,7 +411,7 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len)
 {
 	struct sha256_handle *sha;
-	unsigned int dgst[8];
+	unsigned int dgst[ECCKEY_LEN];
 	mpz_t X, s, r;
 	mpz_t w, u1, u2;
 	struct curve_point H, Q, tp;
@@ -416,8 +420,8 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	retv = 0;
 	mpz_init2(s, 256);
 	mpz_init2(r, 256);
-	mpz_import(s, 8, 1, 4, 0, 0, sig->sig_s);
-	mpz_import(r, 8, 1, 4, 0, 0, sig->sig_r);
+	mpz_import(s, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_s);
+	mpz_import(r, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_r);
 	if (mpz_cmp(s, epn) >= 0 || mpz_cmp(r, epn) >= 0)
 		return 0;
 
@@ -426,7 +430,7 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	sha256_exit(sha);
 
 	mpz_init2(X, 256);
-	mpz_import(X, 8, 1, 4, 0, 0, dgst);
+	mpz_import(X, ECCKEY_LEN, 1, 4, 0, 0, dgst);
 
 	mpz_init2(w, 256);
 	mpz_invert(w, s, epn);

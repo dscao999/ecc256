@@ -111,7 +111,7 @@ static inline unsigned char * sube(unsigned char *stw, int i, int j)
 	return stw + j*4 + i;
 }
 
-static inline void s_row(unsigned char st[16], int row)
+static inline void s_row(unsigned char *st, int row)
 {
 	unsigned char ele;
 
@@ -122,7 +122,7 @@ static inline void s_row(unsigned char st[16], int row)
 	*sube(st, row, 3) = ele;
 }
 
-static inline void invs_row(unsigned char st[16], int row)
+static inline void invs_row(unsigned char *st, int row)
 {
 	unsigned char ele;
 
@@ -133,7 +133,7 @@ static inline void invs_row(unsigned char st[16], int row)
 	*sube(st, row, 0) = ele;
 }
 
-static void shift_rows(unsigned char st[16])
+static void shift_rows(unsigned char *st)
 {
 	s_row(st, 1);
 	s_row(st, 2);
@@ -143,7 +143,7 @@ static void shift_rows(unsigned char st[16])
 	s_row(st, 3);
 }
 
-static void inv_shift_rows(unsigned char st[16])
+static void inv_shift_rows(unsigned char *st)
 {
 	invs_row(st, 1);
 	invs_row(st, 2);
@@ -169,72 +169,72 @@ static void inv_dot_vec(unsigned char w[4], unsigned char s[4])
 	s[3] = dot(0x0b, w[0]) ^ dot(0x0d, w[1]) ^ dot(0x09, w[2]) ^ dot(0x0e, w[3]);
 }
 
-static inline void mix_columns(unsigned char s[16])
+static inline void mix_columns(unsigned char *s)
 {
-	unsigned char w[16];
+	unsigned char w[AES128_BLOCK_LEN];
 
-	memcpy(w, s, 16);
+	memcpy(w, s, AES128_BLOCK_LEN);
 	dot_vec(w, s);
 	dot_vec(w+4, s+4);
 	dot_vec(w+8, s+8);
 	dot_vec(w+12, s+12);
 }
 
-static inline void inv_mix_columns(unsigned char s[16])
+static inline void inv_mix_columns(unsigned char *s)
 {
-	unsigned char w[16];
+	unsigned char w[AES128_BLOCK_LEN];
 
-	memcpy(w, s, 16);
+	memcpy(w, s, AES128_BLOCK_LEN);
 	inv_dot_vec(w, s);
 	inv_dot_vec(w+4, s+4);
 	inv_dot_vec(w+8, s+8);
 	inv_dot_vec(w+12, s+12);
 }
 
-static inline void add_round_key(unsigned char stw[16],
-		const unsigned char w[16])
+static inline void add_round_key(unsigned char *stw,
+		const unsigned char *w)
 {
 	int i;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < AES128_BLOCK_LEN; i++)
 		stw[i] ^= w[i];
 }
 
 void aes_block(const struct aeskey *w,
-		const unsigned char ibytes[16], unsigned char obytes[16])
+		const unsigned char *ibytes, unsigned char *obytes)
 {
 	int r;
 
-	memcpy(obytes, ibytes, 16);
+	memcpy(obytes, ibytes, AES128_BLOCK_LEN);
 	add_round_key(obytes, w->w);
 
 	for (r = 1; r < 10; r++) {
-		sbox_bytes(obytes, 16);
+		sbox_bytes(obytes, AES128_BLOCK_LEN);
 		shift_rows(obytes);
 		mix_columns(obytes);
-		add_round_key(obytes, w->w+r*16);
+		add_round_key(obytes, w->w+r*AES128_BLOCK_LEN);
 	}
-	sbox_bytes(obytes, 16);
+	sbox_bytes(obytes, AES128_BLOCK_LEN);
 	shift_rows(obytes);
 	add_round_key(obytes, w->w+160);
 }
 
 void unaes_block(const struct aeskey *w,
-		const unsigned char ibytes[16], unsigned char obytes[16])
+		const unsigned char *ibytes, unsigned char *obytes)
 {
 	int r;
 
-	memcpy(obytes, ibytes, 16);
+	memcpy(obytes, ibytes, AES128_BLOCK_LEN);
 	add_round_key(obytes, w->w+160);
 
 	for (r = 9; r >= 1; r--) {
 		inv_shift_rows(obytes);
-		inv_sbox_bytes(obytes, 16);
-		add_round_key(obytes, w->w+r*16);
+		inv_sbox_bytes(obytes, AES128_BLOCK_LEN);
+		add_round_key(obytes, w->w+r*AES128_BLOCK_LEN);
 		inv_mix_columns(obytes);
 	}
 	inv_shift_rows(obytes);
-	inv_sbox_bytes(obytes, 16);
+	inv_sbox_bytes(obytes, AES128_BLOCK_LEN);
 	add_round_key(obytes, w->w);
 }
 
@@ -262,14 +262,14 @@ static void key_expan(unsigned char keys[176])
 	}
 }
 
-struct aeskey * aes_init(const unsigned char key[16])
+struct aeskey * aes_init(const unsigned char *key)
 {
 	struct aeskey *w;
 
 	w = malloc(sizeof(struct aeskey));
 	if (!w)
 		return w;
-	memcpy(w->w, key, 16);
+	memcpy(w->w, key, AES128_BLOCK_LEN);
 	key_expan(w->w);
 	return w;
 }

@@ -16,7 +16,7 @@
 #define Sigma0(X) (RotR(X, 7) ^ RotR(X, 18) ^ ShR(X, 3))
 #define Sigma1(X) (RotR(X, 17) ^ RotR(X, 19) ^ ShR(X, 10))
 
-const static unsigned int K[64] = {
+const static unsigned int K[SHA_BLOCK_LEN] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
 	0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
 	0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
@@ -30,14 +30,14 @@ const static unsigned int K[64] = {
 	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-const static unsigned int H0[8] = {
+const static unsigned int H0[SHA_DGST_LEN] = {
 	0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
 static const unsigned char pad[56] = { 0x80, 0 };
 
-static void sha_padlen(unsigned char buf[8], unsigned long len)
+static void sha_padlen(unsigned char *buf, unsigned long len)
 {
 	buf[0] = (len >> 56) & 0x0ff;
 	buf[1] = (len >> 48) & 0x0ff;
@@ -49,14 +49,14 @@ static void sha_padlen(unsigned char buf[8], unsigned long len)
 	buf[7] = len & 0x0ff;
 }
 
-static unsigned int sha_buf2word(const unsigned char buf[4])
+static unsigned int sha_buf2word(const unsigned char *buf)
 {
 	return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
 
-static void sha_block(const unsigned char buf[64], unsigned int H[8])
+static void sha_block(const unsigned char *buf, unsigned int *H)
 {
-	unsigned int W[64];
+	unsigned int W[SHA_BLOCK_LEN];
 	int i;
 	unsigned int T1, T2;
 	unsigned int a, b, c, d, e, f, g, h;
@@ -97,8 +97,8 @@ static void sha_block(const unsigned char buf[64], unsigned int H[8])
 	H[7] += h;
 }
 
-void sha256_block(struct sha256_handle *hd, const unsigned char buf[64],
-		unsigned int H[8], unsigned long len, int flag)
+void sha256_block(struct sha256_handle *hd, const unsigned char *buf,
+		unsigned int *H, unsigned long len, int flag)
 {
 	int padlen, modlen;
 	unsigned char *pad_block;
@@ -135,7 +135,7 @@ void sha256_block(struct sha256_handle *hd, const unsigned char buf[64],
 }
 
 void sha256(struct sha256_handle *hd, const unsigned char *buf, unsigned long len,
-		unsigned H[8])
+		unsigned int *H)
 {
 	const unsigned char *block;
 	unsigned long curpos;
