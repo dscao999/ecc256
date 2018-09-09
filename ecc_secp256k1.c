@@ -41,14 +41,6 @@ void point_set_ui(struct curve_point *p, unsigned int x, unsigned int y)
 	mpz_set_ui(p->y, y);
 }
 
-static inline void point_assign(struct curve_point *p,
-		const unsigned int px[ECCKEY_LEN],
-		const unsigned int py[ECCKEY_LEN])
-{
-	mpz_import(p->x, ECCKEY_LEN, 1, 4, 0, 0, px);
-	mpz_import(p->y, ECCKEY_LEN, 1, 4, 0, 0, py);
-}
-
 static const unsigned int EPM[] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFE, 0xFFFFFC2F
@@ -73,6 +65,30 @@ static const unsigned int EPN[] = {
 };
 static mpz_t epn;
 static mpz_t sroot;
+
+static inline int point_assign(struct curve_point *p,
+		const unsigned int px[ECCKEY_LEN],
+		const unsigned int py[ECCKEY_LEN])
+{
+	mpz_t x, y;
+	int retv;
+
+	mpz_import(p->x, ECCKEY_LEN, 1, 4, 0, 0, px);
+	mpz_import(p->y, ECCKEY_LEN, 1, 4, 0, 0, py);
+
+	mpz_init2(x, 512);
+	mpz_init2(y, 512);
+	mpz_mul(y, p->y, p->y);
+	mpz_mod(y, y, epm);
+	mpz_mul(x, p->x, p->x);
+	mpz_mul(x, x, p->x);
+	mpz_add_ui(x, x, b);
+	mpz_mod(x, x, epm);
+
+	retv =  mpz_cmp(x, y);
+	mpz_clears(x, y, NULL);
+	return retv;
+}
 
 static int ecc_check(void);
 static int moduli_3_4(void);
@@ -378,7 +394,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_init2(k, 256);
 	mpz_init2(k_inv, 256);
 	mpz_init2(r, 256);
-	alsa = alsa_init(1);
+	alsa = alsa_init(0);
 
 	do {
 		do {
@@ -443,7 +459,8 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_mod(u2, u2, epn);
 
 	point_init(&H);
-	point_assign(&H, key->px, key->py);
+	if (point_assign(&H, key->px, key->py) != 0)
+		return 0;
 	point_init(&tp);
 	point_x_num_ng(&tp, u2, &H);
 	
