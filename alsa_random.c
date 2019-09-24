@@ -3,17 +3,19 @@
 
 #define SAMPLE_LEN	176400   /* one second of background noise, 44.1k * 2 channel * 16 bit */
 
-struct alsa_param * alsa_init(int len)
+struct alsa_param * alsa_init(int sec)
 {
-	int snderr;
+	int snderr, len;
 	unsigned int srate;
 	struct alsa_param *alsa;
 
 
-	if (len <= 0)
+	if (sec < 0)
+		return NULL;
+	else if (sec == 0)
 		len = SAMPLE_LEN;
 	else
-		len = (((len - 1) >> 2) + 1) << 2;
+		len = sec * 176400;
 	alsa = malloc(sizeof(struct alsa_param));
 	if (!alsa) {
 		fprintf(stderr, "Out of Memory!\n");

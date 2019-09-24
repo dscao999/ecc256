@@ -58,3 +58,5 @@ ecc
 rnda
 sha
 aes
+crc
+b64tx

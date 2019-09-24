@@ -10,10 +10,10 @@ int main(int argc, char *argv[])
 	struct alsa_param *alsa;
 	unsigned char buf[32], *byte;
 	unsigned int dgst[8];
-	int blklen, param_done, i, opt;
+	int sec, param_done, i, opt;
 	static struct option lopt[] = {
 		{
-			.name = "block",
+			.name = "sec",
 			.has_arg = required_argument,
 			.flag = NULL,
 			.val = 'b'
@@ -30,11 +30,11 @@ int main(int argc, char *argv[])
 	extern char *optarg;
 
 	keylen = 0;
-	blklen = 0;
+	sec = 0;
 	opterr = 0;
 	param_done = 0;
 	do {
-		opt = getopt_long(argc, argv, ":b:l:", lopt, NULL);
+		opt = getopt_long(argc, argv, ":s:l:", lopt, NULL);
 		switch (opt) {
 		case -1:
 			param_done = 1;
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Missing arguments for %c\n", optopt);
 			break;
 		case 'b':
-			blklen = atoi(optarg);
+			sec = atoi(optarg);
 			break;
 		case 'l':
 			keylen = atoi(optarg);
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 	if (keylen > 32)
 		keylen = 32;
 
-	alsa = alsa_init(blklen);
+	alsa = alsa_init(sec);
 	if (!alsa)
 		return 10000;
 
