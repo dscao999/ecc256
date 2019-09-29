@@ -21,7 +21,7 @@ static inline void point_init(struct curve_point *p)
 	mpz_init2(p->x, 512);
 	mpz_init2(p->y, 512);
 }
-static inline void point_exit(struct curve_point *p)
+static inline void point_clear(struct curve_point *p)
 {
 	mpz_clear(p->x);
 	mpz_clear(p->y);
@@ -46,9 +46,7 @@ static const unsigned int EPM[] = {
 	0xFFFFFFFE, 0xFFFFFC2F
 };
 static mpz_t epm;
-static const unsigned short a = 0;
 static const unsigned short b = 7;
-static const unsigned short h = 1;
 static const unsigned int GX[] = {
 	0x79BE667E, 0xF9DCBBAC, 0x55A06295, 0xCE870B07, 0x029BFCDB, 0x2DCE28D9,
 	0x59F2815B, 0x16F81798
@@ -101,7 +99,7 @@ static inline void a_sroot(mpz_t x, const mpz_t a)
 void ecc_exit(void)
 {
 	mpz_clear(epm);
-	point_exit(&G);
+	point_clear(&G);
 	mpz_clear(epn);
 	mpz_clear(sroot);
 }
@@ -164,7 +162,7 @@ static int ecc_check(void)
 	
 	mpz_clear(tr);
 	mpz_clear(rcx);
-	point_exit(&point);
+	point_clear(&point);
 	return retv;
 }
 
@@ -311,8 +309,8 @@ static void point_x_num_ng(struct curve_point *R, mpz_t num,
 			cnum >>= 1;
 		}
 	}
-	point_exit(&tp);
-	point_exit(&S);
+	point_clear(&tp);
+	point_clear(&S);
 }
 
 static inline void point_x_num(struct curve_point *R, mpz_t num)
@@ -330,7 +328,7 @@ static void compute_public(struct ecc_key *ecckey, mpz_t x)
 	mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
 	mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
 	assert(count_x != 0 && count_y != 0);
-	point_exit(&P);
+	point_clear(&P);
 }
 
 int ecc_genkey(struct ecc_key *ecckey, int secs)
@@ -419,7 +417,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_export(sig->sig_r, &count_r, 1, 4, 0, 0, r);
 	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 
 	assert(count_r != 0 && count_s != 0);
-	point_exit(&kg);
+	point_clear(&kg);
 	mpz_clears(k, r, dst, k_inv, s, skey, NULL);
 }
 
@@ -472,8 +470,8 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 
 	retv = mpz_cmp(w, r);
 	mpz_clears(X, s, r, w, u1, u2, NULL);
-	point_exit(&H);
-	point_exit(&Q);
-	point_exit(&tp);
+	point_clear(&H);
+	point_clear(&Q);
+	point_clear(&tp);
 	return retv == 0;
 }
