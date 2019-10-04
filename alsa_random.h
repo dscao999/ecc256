@@ -16,7 +16,7 @@ struct alsa_param {
 	int buflen, paused;
 };
 
-struct alsa_param * alsa_init(int len);
+struct alsa_param * alsa_init(int sec);
 
 static inline void alsa_exit(struct alsa_param *alsa)
 {

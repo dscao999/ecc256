@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
 {
 	struct ecc_key *mkey;
 	void *buffer;
-	int fin, opt, action, retv;
+	int fin, opt, action, retv, fnamlen;
 	const char *keyfile, *msgfile;
 	char *sigfile;
 	extern int optind, opterr, optopt;
@@ -252,7 +252,10 @@ int main(int argc, char *argv[])
 				" file [file.sig]\n", argv[0]);
 		return 10;
 	}
-	buffer = malloc(sizeof(struct ecc_key)+strlen(msgfile)+5);
+	fnamlen = 0;
+	if (msgfile)
+		fnamlen = strlen(msgfile);
+	buffer = malloc(sizeof(struct ecc_key)+fnamlen+5);
 	if (!buffer) {
 		fprintf(stderr, "Out of Memory!\n");
 		return 10000;
@@ -261,8 +264,10 @@ int main(int argc, char *argv[])
 		sigfile = argv[optind+1];
 	else {
 		sigfile = buffer + sizeof(struct ecc_key);
-		strcpy(sigfile, msgfile);
-		strcat(sigfile, ".sig");
+		if (fnamlen > 0) {
+			strcpy(sigfile, msgfile);
+			strcat(sigfile, ".sig");
+		}
 	}
 
 	mkey = buffer;

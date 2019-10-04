@@ -1,11 +1,11 @@
+#ifndef ECC_SECP256K1_DSCAO__
+#define ECC_SECP256K1_DSCAO__
 /*
  * Elliptic Curve Cryptography
  * Implementation of secp256k1, y exp 2 = x exp 3 + 7.
  * Dashi Cao, dscao999@hotmail.com, caods1@lenovo.com
  *
  */
-#ifndef ECC_SECP256K1_DSCAO__
-#define ECC_SECP256K1_DSCAO__
 
 #define ECCKEY_LEN	8
 
@@ -31,4 +31,6 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
 
+int ecc_gen_table(void);
+void ecc_prn_table(void);
 #endif /* ECC_SECP256K1_DSCAO__ */
