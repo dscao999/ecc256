@@ -8,6 +8,7 @@
 #include <assert.h>
 #include "ecc_secp256k1.h"
 #include "alsa_random.h"
+#include "base64.h"
 
 #define BITLEN	256
 
@@ -330,16 +331,43 @@ void ecc_exit(void)
 	mpz_clear(sroot);
 }
 
-static void compute_public(struct ecc_key *ecckey, mpz_t x)
+static void compute_public(struct ecc_key *ecckey, int flag)
 {
 	struct curve_point P;
 	size_t count_x, count_y;
+	mpz_t x, tmp;
 
 	point_init(&P);
-	point_x_num_G(&P, x);
-	mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
-	mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
-	assert(count_x != 0 || count_y != 0);
+	mpz_init2(x, BITLEN);
+
+	switch(flag) {
+	case 0:
+		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
+		point_x_num_G(&P, x);
+		mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
+		mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
+		assert(count_x != 0 || count_y != 0);
+		break;
+	case 1:
+	case 2:
+		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->px);
+		mpz_init2(tmp, 2*BITLEN);
+		mpz_mul_mod(tmp, x, x);
+		mpz_mul_mod(tmp, tmp, x);
+		mpz_add_ui_mod(tmp, tmp, b);
+		a_sroot(x, tmp);
+		mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
+		if ((flag == 1 && (ecckey->py[ECCKEY_LEN-1] & 1) == 0) ||
+				(flag == 0 && 
+				(ecckey->py[ECCKEY_LEN-1] & 1) == 1)) {
+			mpz_sub(x, epm, x);
+			mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
+		}
+		mpz_clear(tmp);
+		break;
+	}
+
+	mpz_clear(x);
 	point_clear(&P);
 }
 
@@ -359,7 +387,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0);
 
-	compute_public(ecckey, x);
+	compute_public(ecckey, 0);
 
 	mpz_clear(x);
 	alsa_exit(alsa);
@@ -369,12 +397,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 
 void ecc_comkey(struct ecc_key *ecckey)
 {
-	mpz_t x;
-
-	mpz_init2(x, 256);
-	mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
-	compute_public(ecckey, x);
-	mpz_clear(x);
+	compute_public(ecckey, 0);
 }
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
@@ -483,6 +506,80 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	point_clear(&Q);
 	point_clear(&tp);
 	return retv == 0;
+}
+
+static int ecc_key_export_pub(char *str, int buflen,
+		const struct ecc_key *ecckey, int flag)
+{
+	char fm;
+	int idx, len;
+
+	if (flag & ECCKEY_BRIEF) {
+		if (ecckey->py[ECCKEY_LEN-1] & 1)
+			fm = '1';
+		else
+			fm = '2';
+	} else {
+		fm = '0';
+	}
+	*str = fm;
+	len = bignum2str_b64(str+1, buflen-1, ecckey->px, ECCKEY_LEN);
+	if (flag & ECCKEY_BRIEF)
+		return len + 1;
+	if (len + 2 < buflen) {
+		*(str+len+1) = '=';
+		idx = len + 2;
+		len = bignum2str_b64(str+idx, buflen - idx,
+				ecckey->py, ECCKEY_LEN);
+	}
+	return idx + len;
+}
+
+int ecc_key_export(char *str, int buflen,
+		const struct ecc_key *ecckey, int flag)
+{
+	int len = 0;
+
+	if (flag & ECCKEY_PUB)
+		len = ecc_key_export_pub(str, buflen, ecckey, flag);
+	return len;
+}
+
+int ecc_key_import(struct ecc_key *ecckey, const char *str)
+{
+	char tmpbuf[128], *eq;
+	int len;
+	struct curve_point P;
+
+	memset(ecckey, 0, sizeof(struct ecc_key));
+	switch(*str) {
+	case '*':
+		str2bignum_b64(ecckey->pr, ECCKEY_LEN, str+1);
+		compute_public(ecckey, 0);
+		break;
+	case '0':
+		eq = strchr(str, '=');
+		len = eq - str;
+		memcpy(tmpbuf, str+1, len-1);
+		tmpbuf[len] = 0;
+		str2bignum_b64(ecckey->px, ECCKEY_LEN, tmpbuf);
+		str2bignum_b64(ecckey->py, ECCKEY_LEN, eq+1);
+		break;
+	case '1':
+		str2bignum_b64(ecckey->px, ECCKEY_LEN, str+1);
+		compute_public(ecckey, 1);
+		break;
+	case '2':
+		str2bignum_b64(ecckey->px, ECCKEY_LEN, str+1);
+		compute_public(ecckey, 2);
+		break;
+	}
+	point_init(&P);
+	mpz_import(P.x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->px);
+	mpz_import(P.y, ECCKEY_LEN, 1, 4, 0, 0, ecckey->py);
+	is_on_curve(&P);
+	point_clear(&P);
+	return 0;
 }
 
 static struct curve_point n2P[256];

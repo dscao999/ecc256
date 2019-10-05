@@ -14,37 +14,40 @@ static inline int malloc_len(int len)
 	return ((((len - 1) >> 4) + 1) << 4);
 }
 
-#define GEN_KEY	0x01
+#define GEN_KEY		0x01
 #define SIGN_FILE	0x02
 #define SIG_VERIFY	0x04
+#define EXPORT_KEY	0x80
+#define IMPORT_KEY	0x40
 
-static int key_process(struct ecc_key *mkey, const char *keyfile, int action)
+static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
+		const char *keystr)
 {
 	unsigned int key_crc;
 	FILE *ko;
 
-	if (action & GEN_KEY) {
+	if ((action & GEN_KEY) || (action & IMPORT_KEY))
 		ko = fopen(keyfile, "wb");
-		if (!ko) {
-			fprintf(stderr, "Cannot open key file %s for writing!\n",
-					keyfile);
-			return 4;
-		}
+	else
+		ko = fopen(keyfile, "rb");
+	if (!ko) {
+		fprintf(stderr, "Cannot open key file %s for read/write!\n",
+				keyfile);
+		return 4;
+	}
+	if (action & GEN_KEY) {
 		ecc_genkey(mkey, 5);
 		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
 		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
 		fwrite(&key_crc, sizeof(key_crc), 1, ko);
-		fclose(ko);
+	} else if (action & IMPORT_KEY) {
+		ecc_key_import(mkey, keystr);
+		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
+		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
+		fwrite(&key_crc, sizeof(key_crc), 1, ko);
 	} else {
-		ko = fopen(keyfile, "rb");
-		if (!ko) {
-			fprintf(stderr, "Cannot open file: %s for reading.\n",
-				keyfile);
-			return 12;
-		}
 		fread(mkey, sizeof(struct ecc_key), 1, ko);
 		fread(&key_crc, sizeof(key_crc), 1, ko);
-		fclose(ko);
 		if (!crc32_check((unsigned char *)mkey,
 				sizeof(struct ecc_key), key_crc)) {
 			fprintf(stderr, "Key corrupted!\n");
@@ -52,6 +55,7 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action)
 		}
 	}
 
+	fclose(ko);
 	return 0;
 }
 
@@ -202,8 +206,8 @@ int main(int argc, char *argv[])
 	struct ecc_key *mkey;
 	void *buffer;
 	int fin, opt, action, retv, fnamlen;
-	const char *keyfile, *msgfile;
-	char *sigfile;
+	const char *keyfile, *msgfile, *keystr;
+	char *sigfile, *exbuf;
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
@@ -215,7 +219,7 @@ int main(int argc, char *argv[])
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":k:svg");
+		opt = getopt(argc, argv, ":k:svgei:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -225,6 +229,13 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			fprintf(stderr, "Unknown option: %c\n", optopt);
+			break;
+		case 'e':
+			action |= EXPORT_KEY;
+			break;
+		case 'i':
+			action |= IMPORT_KEY;
+			keystr = optarg;
 			break;
 		case 'k':
 			keyfile = optarg;
@@ -273,7 +284,7 @@ int main(int argc, char *argv[])
 	mkey = buffer;
 	ecc_init();
 
-	key_process(mkey, keyfile, action);
+	key_process(mkey, keyfile, action, keystr);
 
 	if (action & SIGN_FILE)
 		sign_file(msgfile, mkey, sigfile);
@@ -281,6 +292,13 @@ int main(int argc, char *argv[])
 	if (action & SIG_VERIFY)
 		if (!verify_file(msgfile, mkey, sigfile))
 			fprintf(stderr, "Signuature verification failed!\n");
+
+	if (action & EXPORT_KEY) {
+		exbuf = malloc(256);
+		ecc_key_export(exbuf, 256, mkey, ECCKEY_PUB|ECCKEY_BRIEF);
+		printf("Pub: %s\n", exbuf);
+		free(exbuf);
+	}
 
 	free(buffer);
 	return retv;
