@@ -12,6 +12,8 @@
 
 #define BITLEN	256
 
+#include "ecc_G_data.h"
+
 static const unsigned int EPM[] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFE, 0xFFFFFC2F
@@ -24,7 +26,6 @@ static mpz_t epm, epn, sroot;
 static const unsigned short b = 7;
 
 #include "gmp_wrapper.h"
-#include "ecc_G_data.c"
 
 static inline int moduli_3_4(void)
 {
@@ -40,23 +41,26 @@ static inline int moduli_3_4(void)
 static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 {
 	unsigned int w[ECCKEY_LEN], cw;
-	unsigned long rlen;
-	mpz_t fct;
+	size_t rlen;
+	mpz_t fct, tmpx;
 	int i, j;
 
 	mpz_init2(fct, 2*BITLEN);
-	mpz_set_ui(x, 1);
+	mpz_init2(tmpx, 2*BITLEN);
+	mpz_set_ui(tmpx, 1);
 	mpz_set(fct, a);
 	mpz_export(w, &rlen, 1, 4, 0, 0, e);
 	for (i = rlen-1; i >= 0; i--) {
 		cw = w[i];
 		for (j = 0; j < 32; j++) {
 			if ((cw & 1) == 1)
-				mpz_mul_mod(x, x, fct);
+				mpz_mul_mod(tmpx, tmpx, fct);
 			cw >>= 1;
 			mpz_mul_mod(fct, fct, fct);
 		}
 	}
+	mpz_set(x, tmpx);
+	mpz_clear(tmpx);
 	mpz_clear(fct);
 }
 
@@ -255,28 +259,30 @@ static void point_x_num_G(struct curve_point *R, mpz_t num)
 static void point_x_num_nG(struct curve_point *R, const mpz_t num,
 			const struct curve_point *H)
 {
-	struct curve_point S;
+	struct curve_point S, tmpR;
 	unsigned int x[ECCKEY_LEN], cnum;
 	size_t count;
-	int i, j, idx;
+	int i, j;
 
-	point_set_ui(R, 0, 0);
+	point_init(&tmpR);
+	point_set_ui(&tmpR, 0, 0);
 	point_init(&S);
 	point_set(&S, H);
 
 	mpz_export(x, &count, 1, 4, 0, 0, num);
 	assert(count <= ECCKEY_LEN);
-	idx = 0;
 	for (i = count-1; i >= 0; i--) {
 		cnum = x[i];
 		for (j = 0; j < 32; j++) {
 			if (cnum & 1)
-				point_add(R, R, &S);
+				point_add(&tmpR, &tmpR, &S);
 			cnum >>= 1;
 			point_double(&S, &S);
-			idx++;
 		}
 	}
+	point_set(R, &tmpR);
+	point_clear(&S);
+	point_clear(&tmpR);
 }
 
 static int ecc_check(void)
@@ -380,7 +386,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 	alsa = alsa_init(secs);
 	if (!alsa)
 		return 10000;
-	mpz_init2(x, 256);
+	mpz_init2(x, BITLEN);
 
 	do {
 		retv = alsa_random(alsa, ecckey->pr);
@@ -395,11 +401,6 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 	return retv;
 }
 
-void ecc_comkey(struct ecc_key *ecckey)
-{
-	compute_public(ecckey, 0);
-}
-
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len)
 {
@@ -407,7 +408,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	unsigned int dgst[ECCKEY_LEN];
 	unsigned int kx[ECCKEY_LEN];
 	struct alsa_param *alsa;
-	mpz_t k, r, s, dst, k_inv, skey;
+	mpz_t k, r, s, dst, k_inv, prikey;
 	struct curve_point K;
 	size_t count_r, count_s;
 
@@ -417,11 +418,11 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	mpz_init2(dst, BITLEN);
 	mpz_import(dst, ECCKEY_LEN, 1, 4, 0, 0, dgst);
-	mpz_init2(skey, BITLEN);
-	mpz_import(skey, ECCKEY_LEN, 1, 4, 0, 0, key->pr);
+	mpz_init2(prikey, BITLEN);
+	mpz_import(prikey, ECCKEY_LEN, 1, 4, 0, 0, key->pr);
 
-	mpz_init2(s, 2*BITLEN);
 	point_init(&K);
+	mpz_init2(s, 2*BITLEN);
 	mpz_init2(k, BITLEN);
 	mpz_init2(k_inv, BITLEN);
 	mpz_init2(r, BITLEN);
@@ -439,7 +440,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 			continue;
 		mpz_invert(k_inv, k, epn);
 
-		mpz_mul(s, skey, r);
+		mpz_mul(s, prikey, r);
 		mpz_add(s, s, dst);
 		mpz_mul(s, k_inv, s);
 		mpz_mod(s, s, epn);
@@ -451,7 +452,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 
 	assert(count_r != 0 && count_s != 0);
 	point_clear(&K);
-	mpz_clears(k, r, dst, k_inv, s, skey, NULL);
+	mpz_clears(k, r, dst, k_inv, s, prikey, NULL);
 }
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
@@ -459,52 +460,49 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 {
 	struct sha256_handle *sha;
 	unsigned int dgst[ECCKEY_LEN];
-	mpz_t X, s, r;
+	mpz_t x, s, r;
 	mpz_t w, u1, u2;
-	struct curve_point H, Q, tp;
+	struct curve_point H, Q;
 	int retv;
 
 	retv = 0;
-	mpz_init2(s, 256);
-	mpz_init2(r, 256);
+	mpz_init2(s, BITLEN);
+	mpz_init2(r, BITLEN);
 	mpz_import(s, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_s);
 	mpz_import(r, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_r);
-	if (mpz_cmp(s, epn) >= 0 || mpz_cmp(r, epn) >= 0)
-		return 0;
+	assert(mpz_cmp(s, epn) < 0 && mpz_cmp(r, epn) < 0);
 
 	sha = sha256_init();
 	sha256(sha, mesg, len, dgst);
 	sha256_exit(sha);
 
-	mpz_init2(X, 256);
-	mpz_import(X, ECCKEY_LEN, 1, 4, 0, 0, dgst);
+	mpz_init2(x, BITLEN);
+	mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, dgst);
 
-	mpz_init2(w, 256);
+	mpz_init2(w, BITLEN);
 	mpz_invert(w, s, epn);
 
-	mpz_init2(u1, 512);
-	mpz_mul(u1, X, w);
+	mpz_init2(u1, 2*BITLEN);
+	mpz_mul(u1, x, w);
 	mpz_mod(u1, u1, epn);
-	mpz_init2(u2, 512);
+	mpz_init2(u2, 2*BITLEN);
 	mpz_mul(u2, r, w);
 	mpz_mod(u2, u2, epn);
 
 	point_init(&H);
 	point_assign(&H, key->px, key->py);
-	point_init(&tp);
-	point_x_num_nG(&tp, u2, &H);
+	point_x_num_nG(&H, u2, &H);
 	
 	point_init(&Q);
 	point_x_num_G(&Q, u1);
 
-	point_add(&H, &tp, &Q);
+	point_add(&H, &H, &Q);
 	mpz_mod(w, H.x, epn);
 
 	retv = mpz_cmp(w, r);
-	mpz_clears(X, s, r, w, u1, u2, NULL);
+	mpz_clears(x, s, r, w, u1, u2, NULL);
 	point_clear(&H);
 	point_clear(&Q);
-	point_clear(&tp);
 	return retv == 0;
 }
 
