@@ -2,7 +2,7 @@
 #define ALSA_RANDOM_DSCAO__
 
 #include <alsa/asoundlib.h>
-#include "digest.h"
+#include "sha256_dgst.h"
 
 #define SAMPLE_HZ 44100
 

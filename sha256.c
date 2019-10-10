@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include "digest.h"
+#include "sha256_dgst.h"
 
 int main(int argc, char *argv[])
 {

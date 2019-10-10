@@ -4,7 +4,7 @@
  *  Dashi Cao, caods1@lenovo.com, dscao999@hotmail.com
  */
 #include <string.h>
-#include "digest.h"
+#include "sha256_dgst.h"
 
 #define ShR(X, b) ((X) >> b)
 #define RotR(X, b)  (((X) >> b) | ((X) << (32 - b)))
