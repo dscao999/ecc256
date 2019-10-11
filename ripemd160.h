@@ -1,5 +1,6 @@
 #ifndef RIPEMD160_DGST_DSCAO__
 #define RIPEMD160_DGST_DSCAO__
+#include <stdio.h>
 #include <stdlib.h>
 
 struct ripemd160 {
@@ -31,4 +32,6 @@ static inline void ripemd160_exit(struct ripemd160 *ripe)
 }
 
 void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len);
+
+void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin);
 #endif /* RIPEMD160_DGST_DSCAO__ */

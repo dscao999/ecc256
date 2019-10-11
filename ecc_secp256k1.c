@@ -526,9 +526,10 @@ static int ecc_key_export_pub(char *str, int buflen,
 	len = bignum2str_b64(str+1, buflen-1, ecckey->px, ECCKEY_LEN);
 	if (flag & ECCKEY_BRIEF)
 		return len + 1;
+	idx = len;
 	if (len + 2 < buflen) {
-		*(str+len+1) = '=';
-		idx = len + 2;
+		*(str+idx+1) = '=';
+		idx += 2;
 		len = bignum2str_b64(str+idx, buflen - idx,
 				ecckey->py, ECCKEY_LEN);
 	}

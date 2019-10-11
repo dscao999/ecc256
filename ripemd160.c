@@ -166,3 +166,32 @@ void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len)
 		ripe_block(ripe, H);
 	}
 }
+
+void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin)
+{
+	unsigned long len = 0;
+	union {
+		unsigned int M[16];
+		char str[64];
+	} buf;
+	unsigned int M[16];
+	int nbytes, done;
+
+	nbytes = fread(buf.str, 1, 64, fin);
+	while (nbytes == 64) {
+		ripe_block(ripe, (unsigned int *)buf.M);
+		len += nbytes;
+		nbytes = fread(buf.str, 1, 64, fin);
+	}
+	if (nbytes == 0 && ferror(fin)) {
+		fprintf(stderr, "Read file error!\n");
+		return;
+	}
+	len += nbytes;
+	done = ripe_pad(len, (unsigned char *)buf.str, (unsigned char *)M, 1);
+	ripe_block(ripe, M);
+	if (!done) {
+		ripe_pad(len, NULL, (unsigned char *)M, 0);
+		ripe_block(ripe, M);
+	}
+}

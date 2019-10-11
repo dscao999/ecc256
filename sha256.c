@@ -35,18 +35,31 @@ const static unsigned int H0[SHA_DGST_LEN] = {
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
-static const unsigned char pad[56] = { 0x80, 0 };
-
-static void sha_padlen(unsigned char *buf, unsigned long len)
+static int sha256_padlen(unsigned char *buf, unsigned long len,
+		const char *str, int msg)
 {
-	buf[0] = (len >> 56) & 0x0ff;
-	buf[1] = (len >> 48) & 0x0ff;
-	buf[2] = (len >> 40) & 0x0ff;
-	buf[3] = (len >> 32) & 0x0ff;
-	buf[4] = (len >> 24) & 0x0ff;
-	buf[5] = (len >> 16) & 0x0ff;
-	buf[6] = (len >> 8) & 0x0ff;
-	buf[7] = len & 0x0ff;
+	int rem;
+
+	memset(buf, 0, SHA_BLOCK_LEN);
+	if (msg) {
+		rem = len & 63;
+		if (rem)
+			memcpy(buf, str, rem);
+		buf[rem] = 0x80;
+		if (rem + 9 > 64)
+			return 0;
+	}
+
+	len <<= 3;
+	buf[56] = (len >> 56) & 0x0ff;
+	buf[57] = (len >> 48) & 0x0ff;
+	buf[58] = (len >> 40) & 0x0ff;
+	buf[59] = (len >> 32) & 0x0ff;
+	buf[60] = (len >> 24) & 0x0ff;
+	buf[61] = (len >> 16) & 0x0ff;
+	buf[62] = (len >> 8) & 0x0ff;
+	buf[63] = len & 0x0ff;
+	return 1;
 }
 
 static unsigned int sha_buf2word(const unsigned char *buf)
@@ -54,7 +67,7 @@ static unsigned int sha_buf2word(const unsigned char *buf)
 	return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
 
-static void sha_block(const unsigned char *buf, unsigned int *H)
+static void sha256_block(struct sha256 *sha, const unsigned char *buf)
 {
 	unsigned int W[SHA_BLOCK_LEN];
 	int i;
@@ -66,14 +79,14 @@ static void sha_block(const unsigned char *buf, unsigned int *H)
 
 	for (i = 16; i < 64; i++)
 		W[i] = Sigma1(W[i-2]) + W[i-7] + Sigma0(W[i-15]) + W[i-16];
-	a = H[0];
-	b = H[1];
-	c = H[2];
-	d = H[3];
-	e = H[4];
-	f = H[5];
-	g = H[6];
-	h = H[7];
+	a = sha->H[0];
+	b = sha->H[1];
+	c = sha->H[2];
+	d = sha->H[3];
+	e = sha->H[4];
+	f = sha->H[5];
+	g = sha->H[6];
+	h = sha->H[7];
 
 	for (i = 0; i < 64; i++) {
 		T1 = h + BigSigma1(e) + Ch(e, f, g) + K[i] + W[i];
@@ -87,14 +100,14 @@ static void sha_block(const unsigned char *buf, unsigned int *H)
 		b = a;
 		a = T1 + T2;
 	}
-	H[0] += a;
-	H[1] += b;
-	H[2] += c;
-	H[3] += d;
-	H[4] += e;
-	H[5] += f;
-	H[6] += g;
-	H[7] += h;
+	sha->H[0] += a;
+	sha->H[1] += b;
+	sha->H[2] += c;
+	sha->H[3] += d;
+	sha->H[4] += e;
+	sha->H[5] += f;
+	sha->H[6] += g;
+	sha->H[7] += h;
 }
 
 void sha256_reset(struct sha256 *sha)
@@ -110,50 +123,54 @@ void sha256_reset(struct sha256 *sha)
 		sha->H[7] = H0[7];
 	}
 }
-void sha256_block(struct sha256 *hd, const unsigned char *buf,
-		unsigned long len, int flag)
-{
-	int padlen, modlen;
-	unsigned char *pad_block;
-
-	if (flag & SHA_START)
-		sha256_reset(hd);
-	if (flag & SHA_END) {
-		pad_block = hd->pad_block;
-		modlen = len & 63;
-		memcpy(pad_block, buf, modlen);
-		if (modlen < 56) {
-			padlen = 56 - modlen;
-			memcpy(pad_block+modlen, pad, padlen);
-			sha_padlen(pad_block+56, len*8);
-			sha_block(pad_block, hd->H);
-		} else {
-			padlen = 64 - modlen;
-			memcpy(pad_block+modlen, pad, padlen);
-			sha_block(pad_block, hd->H);
-			memset(pad_block, 0, 56);
-			sha_padlen(pad_block+56, len*8);
-			sha_block(pad_block, hd->H);
-		}
-	} else
-		sha_block(buf, hd->H);
-}
 
 void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len)
 {
 	const unsigned char *block;
-	unsigned long curpos;
-	int flag;
+	unsigned long pos;
+	int done;
+	unsigned int M[16];
 
-	flag = SHA_START;
 	block = buf;
-	curpos = 0;
-	while (curpos + SHA_BLOCK_LEN <= len) {
-		sha256_block(hd, block, len, flag);
+	pos = 0;
+	while (pos + SHA_BLOCK_LEN <= len) {
+		sha256_block(hd, block);
 		block += SHA_BLOCK_LEN;
-		curpos += SHA_BLOCK_LEN;
-		flag = 0;
+		pos += SHA_BLOCK_LEN;
 	}
-	flag |= SHA_END;
-	sha256_block(hd, block, len, flag);
+	done = sha256_padlen((unsigned char *)M, len, (const char *)block, 1);
+	sha256_block(hd, (unsigned char *)M);
+	if (!done) {
+		sha256_padlen((unsigned char *)M, len, NULL, 0);
+		sha256_block(hd, (unsigned char *)M);
+	}
+}
+
+void sha256_file(struct sha256 *hd, FILE *fin)
+{
+	unsigned long len = 0;
+	union {
+		unsigned int M[SHA_BLOCK_LEN/4];
+		char str[SHA_BLOCK_LEN];
+	} buf;
+	unsigned int M[SHA_BLOCK_LEN/4];
+	int nbytes, done;
+
+	nbytes = fread(buf.str, 1, SHA_BLOCK_LEN, fin);
+	while (nbytes == SHA_BLOCK_LEN) {
+		sha256_block(hd, (unsigned char *)buf.M);
+		len += nbytes;
+		nbytes = fread(buf.str, 1, SHA_BLOCK_LEN, fin);
+	}
+	if (nbytes == 0 && ferror(fin)) {
+		fprintf(stderr, "Read file error!\n");
+		return;
+	}
+	len += nbytes;
+	done = sha256_padlen((unsigned char *)M, len, buf.str, 1);
+	sha256_block(hd, (unsigned char *)M);
+	if (!done) {
+		sha256_padlen((unsigned char *)M, len, NULL, 0);
+		sha256_block(hd, (unsigned char *)M);
+	}
 }

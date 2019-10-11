@@ -215,6 +215,7 @@ int main(int argc, char *argv[])
 	keyfile = NULL;
 	msgfile = NULL;
 	sigfile = NULL;
+	keystr = NULL;
 	opterr = 0;
 	fin = 0;
 	action = 0;

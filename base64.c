@@ -80,7 +80,7 @@ static int bignum_lshift(unsigned int bignums[], int num, int v)
 
 int str2bignum_b64(unsigned int bignums[], int num, const char *buf)
 {
-	int i, digit, idx, ovflow;
+	int i, digit, idx, ovflow = 0;
 	const char *pchr;
 	char nchr;
 
