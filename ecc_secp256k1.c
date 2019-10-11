@@ -413,7 +413,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	size_t count_r, count_s;
 
 	sha = sha256_init();
-	sha256(sha, mesg, len, dgst);
+	sha256(sha, mesg, len);
+	memcpy(dgst, sha->H, ECCKEY_LEN*4);
 	sha256_exit(sha);
 
 	mpz_init2(dst, BITLEN);
@@ -473,7 +474,8 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	assert(mpz_cmp(s, epn) < 0 && mpz_cmp(r, epn) < 0);
 
 	sha = sha256_init();
-	sha256(sha, mesg, len, dgst);
+	sha256(sha, mesg, len);
+	memcpy(dgst, sha->H, ECCKEY_LEN*4);
 	sha256_exit(sha);
 
 	mpz_init2(x, BITLEN);

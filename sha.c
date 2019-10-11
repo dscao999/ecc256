@@ -44,14 +44,15 @@ int main(int argc, char *argv[])
 		mlen += nb;
 		if (nb < SHA_BLOCK_LEN)
 			flag |= SHA_END;
-		sha256_block(hd, buf, dgst, mlen, flag);
+		sha256_block(hd, buf, mlen, flag);
 		if (flag & SHA_END)
 			break;
 		flag = 0;
 		lenrem -= nb;
 	}
 	if (!(flag & SHA_END))
-		sha256_block(hd, buf, dgst, mlen, SHA_END);
+		sha256_block(hd, buf, mlen, SHA_END);
+	memcpy(dgst, hd->H, 32);
 	printf("SHA256(%s)= ", argv[1]);
 	for (i = 0; i < 8; i++)
 		printf("%08x", dgst[i]);
@@ -62,7 +63,8 @@ int main(int argc, char *argv[])
 		fseek(fin, 0, SEEK_SET);
 		buf = malloc(flen);
 		nb = fread(buf, 1, flen, fin);
-		sha256(hd, buf, flen, dgst);
+		sha256(hd, buf, flen);
+		memcpy(dgst, hd->H, 32);
 		fclose(fin);
 		printf("SHA256(%s)= ", argv[1]);
 		for (i = 0; i < 8; i++)

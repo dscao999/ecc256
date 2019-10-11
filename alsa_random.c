@@ -139,6 +139,7 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
 	if (snderr == 0)
 		alsa->paused = 1;
-	sha256(alsa->sha, (unsigned char *)alsa->buf, alsa->buflen, dgst);
+	sha256(alsa->sha, (unsigned char *)alsa->buf, alsa->buflen);
+	memcpy(dgst, alsa->sha->H, 32);
 	return retv;
 }

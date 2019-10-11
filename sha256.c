@@ -97,22 +97,27 @@ static void sha_block(const unsigned char *buf, unsigned int *H)
 	H[7] += h;
 }
 
+void sha256_reset(struct sha256 *sha)
+{
+	if (sha) {
+		sha->H[0] = H0[0];
+		sha->H[1] = H0[1];
+		sha->H[2] = H0[2];
+		sha->H[3] = H0[3];
+		sha->H[4] = H0[4];
+		sha->H[5] = H0[5];
+		sha->H[6] = H0[6];
+		sha->H[7] = H0[7];
+	}
+}
 void sha256_block(struct sha256 *hd, const unsigned char *buf,
-		unsigned int *H, unsigned long len, int flag)
+		unsigned long len, int flag)
 {
 	int padlen, modlen;
 	unsigned char *pad_block;
 
-	if (flag & SHA_START) {
-		H[0] = H0[0];
-		H[1] = H0[1];
-		H[2] = H0[2];
-		H[3] = H0[3];
-		H[4] = H0[4];
-		H[5] = H0[5];
-		H[6] = H0[6];
-		H[7] = H0[7];
-	}
+	if (flag & SHA_START)
+		sha256_reset(hd);
 	if (flag & SHA_END) {
 		pad_block = hd->pad_block;
 		modlen = len & 63;
@@ -121,21 +126,20 @@ void sha256_block(struct sha256 *hd, const unsigned char *buf,
 			padlen = 56 - modlen;
 			memcpy(pad_block+modlen, pad, padlen);
 			sha_padlen(pad_block+56, len*8);
-			sha_block(pad_block, H);
+			sha_block(pad_block, hd->H);
 		} else {
 			padlen = 64 - modlen;
 			memcpy(pad_block+modlen, pad, padlen);
-			sha_block(pad_block, H);
+			sha_block(pad_block, hd->H);
 			memset(pad_block, 0, 56);
 			sha_padlen(pad_block+56, len*8);
-			sha_block(pad_block, H);
+			sha_block(pad_block, hd->H);
 		}
 	} else
-		sha_block(buf, H);
+		sha_block(buf, hd->H);
 }
 
-void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len,
-		unsigned int *H)
+void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len)
 {
 	const unsigned char *block;
 	unsigned long curpos;
@@ -145,11 +149,11 @@ void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len,
 	block = buf;
 	curpos = 0;
 	while (curpos + SHA_BLOCK_LEN <= len) {
-		sha256_block(hd, block, H, len, flag);
+		sha256_block(hd, block, len, flag);
 		block += SHA_BLOCK_LEN;
 		curpos += SHA_BLOCK_LEN;
 		flag = 0;
 	}
 	flag |= SHA_END;
-	sha256_block(hd, block, H, len, flag);
+	sha256_block(hd, block, len, flag);
 }
