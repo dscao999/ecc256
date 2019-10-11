@@ -115,7 +115,7 @@ void sha256_block(struct sha256_handle *hd, const unsigned char *buf,
 	}
 	if (flag & SHA_END) {
 		pad_block = hd->pad_block;
-		modlen = len % 64;
+		modlen = len & 63;
 		memcpy(pad_block, buf, modlen);
 		if (modlen < 56) {
 			padlen = 56 - modlen;

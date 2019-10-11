@@ -91,7 +91,7 @@ static int ripe_pad(unsigned long len, const unsigned char mesg[],
 
 	memset(padded, 0, 64);
 	if (first) {
-		rem = len % 64;
+		rem = len & 63;
 		if (rem)
 			memcpy(padded, mesg, rem);
 		padded[rem] = 0x80;
