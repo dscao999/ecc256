@@ -97,7 +97,7 @@ static void sha_block(const unsigned char *buf, unsigned int *H)
 	H[7] += h;
 }
 
-void sha256_block(struct sha256_handle *hd, const unsigned char *buf,
+void sha256_block(struct sha256 *hd, const unsigned char *buf,
 		unsigned int *H, unsigned long len, int flag)
 {
 	int padlen, modlen;
@@ -134,7 +134,7 @@ void sha256_block(struct sha256_handle *hd, const unsigned char *buf,
 		sha_block(buf, H);
 }
 
-void sha256(struct sha256_handle *hd, const unsigned char *buf, unsigned long len,
+void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len,
 		unsigned int *H)
 {
 	const unsigned char *block;

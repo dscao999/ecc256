@@ -13,7 +13,7 @@ sha: sha.o sha256.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 clean:
-	rm -f *.o rnda sha ecc aes crc crctbl b64tx
+	rm -f *.o rnda sha ecc aes crc crctbl b64tx ripe
 
 ecc: ecc.o ecc_secp256k1.o alsa_random.o sha256.o dscrc.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -lgmp -lasound -o $@

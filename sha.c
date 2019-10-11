@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	struct stat filest;
 	int nb, flag, i;
 	unsigned int dgst[8];
-	struct sha256_handle *hd;
+	struct sha256 *hd;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s file\n", argv[0]);

@@ -404,7 +404,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len)
 {
-	struct sha256_handle *sha;
+	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_LEN];
 	unsigned int kx[ECCKEY_LEN];
 	struct alsa_param *alsa;
@@ -458,7 +458,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len)
 {
-	struct sha256_handle *sha;
+	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_LEN];
 	mpz_t x, s, r;
 	mpz_t w, u1, u2;

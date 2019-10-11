@@ -2,12 +2,12 @@
 #define ALSA_RANDOM_DSCAO__
 
 #include <alsa/asoundlib.h>
-#include "sha256_dgst.h"
+#include "sha256.h"
 
 #define SAMPLE_HZ 44100
 
 struct alsa_param {
-	struct sha256_handle *sha;
+	struct sha256 *sha;
 	snd_pcm_t *pcm_handle;
 	snd_pcm_stream_t stmtyp;
 	snd_pcm_hw_params_t *hwparams;
