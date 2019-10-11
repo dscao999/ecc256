@@ -12,7 +12,7 @@ int main(int argc, const char *argv[])
 		msg = argv[1];
 	else
 		msg = "";
-	ripe = ripemd160_init();
+	ripe = ripemd160_init(NULL);
 	ripemd160_dgst(ripe, (const unsigned char *)msg, strlen(msg));
 	for (i = 0; i < 5; i++) {
 		printf("%02x", ripe->H[i] & 0x0ff);

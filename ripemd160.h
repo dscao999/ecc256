@@ -6,11 +6,8 @@ struct ripemd160 {
 	unsigned int H[5];
 };
 
-static inline struct ripemd160 *ripemd160_init(void)
+static inline void ripemd160_reset(struct ripemd160 *ripe)
 {
-	struct ripemd160 *ripe;
-
-	ripe = malloc(sizeof(struct ripemd160));
 	if (ripe) {
 		ripe->H[0] = 0x67452301;
 		ripe->H[1] = 0xEFCDAB89;
@@ -18,6 +15,13 @@ static inline struct ripemd160 *ripemd160_init(void)
 		ripe->H[3] = 0x10325476;
 		ripe->H[4] = 0xC3D2E1F0;
 	}
+}
+
+static inline struct ripemd160 *ripemd160_init(struct ripemd160 *ripe)
+{
+	if (!ripe)
+		ripe = malloc(sizeof(struct ripemd160));
+	ripemd160_reset(ripe);
 	return ripe;
 }
 		
