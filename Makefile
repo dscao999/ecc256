@@ -6,16 +6,16 @@ CFLAGS += -g
 
 all:	rnda sha ecc aes crc b64tx ripe
 
-rnda: capture.o alsa_random.o sha256_dgst.o
+rnda: capture.o alsa_random.o sha256.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
 
-sha: sha256.o sha256_dgst.o
+sha: sha.o sha256.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 clean:
 	rm -f *.o rnda sha ecc aes crc crctbl b64tx
 
-ecc: ecc.o ecc_secp256k1.o alsa_random.o sha256_dgst.o dscrc.o base64.o
+ecc: ecc.o ecc_secp256k1.o alsa_random.o sha256.o dscrc.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -lgmp -lasound -o $@
 
 aes: aes.o dsaes.o
@@ -27,7 +27,7 @@ crc: crc.o dscrc.o
 #crctbl: crc_table.o
 #	$(LINK.o) $(LDFLAGS) $^ -o $@
 
-b64tx: b64tx.o alsa_random.o sha256_dgst.o base64.o
+b64tx: b64tx.o alsa_random.o sha256.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
 
 ripe: ripemd.o ripemd160.o
