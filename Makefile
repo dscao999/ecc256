@@ -4,7 +4,7 @@
 LDFLAGS += -g
 CFLAGS += -g
 
-all:	rnda sha ecc aes crc b64tx
+all:	rnda sha ecc aes crc b64tx ripe
 
 rnda: capture.o alsa_random.o sha256_dgst.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
@@ -29,6 +29,9 @@ crc: crc.o dscrc.o
 
 b64tx: b64tx.o alsa_random.o sha256_dgst.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
+
+ripe: ripemd.o ripemd160.o
+	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 release: rnda sha ecc
 
