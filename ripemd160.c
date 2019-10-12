@@ -80,8 +80,8 @@ static inline unsigned int ripe_rol(int t, int j, unsigned int X)
 	return (X << nobits) | (X >> (32 - nobits));
 }
 
-static int ripe_pad(unsigned long len, const unsigned char mesg[],
-		unsigned char padded[64], int first)
+static int ripe_padlen(unsigned char padded[64], unsigned long len,
+		const unsigned char mesg[], int first)
 {
 	int rem;
 	union {
@@ -159,10 +159,10 @@ void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len)
 		pos += 64;
 		ripe_block(ripe, H);
 	}
-	done = ripe_pad(len, msg+pos, M, 1);
+	done = ripe_padlen(M, len, msg+pos, 1);
 	ripe_block(ripe, H);
 	if (!done) {
-		ripe_pad(len, msg+pos, M, 0);
+		ripe_padlen(M, len, NULL, 0);
 		ripe_block(ripe, H);
 	}
 }
@@ -188,10 +188,11 @@ void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin)
 		return;
 	}
 	len += nbytes;
-	done = ripe_pad(len, (unsigned char *)buf.str, (unsigned char *)M, 1);
+	done = ripe_padlen((unsigned char *)M, len,
+			(unsigned char *)buf.str, 1);
 	ripe_block(ripe, M);
 	if (!done) {
-		ripe_pad(len, NULL, (unsigned char *)M, 0);
+		ripe_padlen((unsigned char *)M, len, NULL, 0);
 		ripe_block(ripe, M);
 	}
 }

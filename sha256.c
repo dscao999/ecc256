@@ -30,7 +30,7 @@ const static unsigned int K[SHA_BLOCK_LEN] = {
 	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-const static unsigned int H0[SHA_DGST_LEN] = {
+const static unsigned int H0[SHA_DGST_LEN/4] = {
 	0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };

@@ -30,7 +30,7 @@ crc: crc.o dscrc.o
 b64tx: b64tx.o alsa_random.o sha256.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -lasound -o $@
 
-ripe: ripemd.o ripemd160.o
+ripe: ripemd.o ripemd160.o base64.o
 	$(LINK.o) $(LDFLAGS) $^ -o $@
 
 release: rnda sha ecc

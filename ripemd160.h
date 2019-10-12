@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define RIPEMD_LEN	20
+
 struct ripemd160 {
-	unsigned int H[5];
+	unsigned int H[RIPEMD_LEN/4];
 };
 
 static inline void ripemd160_reset(struct ripemd160 *ripe)
@@ -18,17 +20,20 @@ static inline void ripemd160_reset(struct ripemd160 *ripe)
 	}
 }
 
-static inline struct ripemd160 *ripemd160_init(struct ripemd160 *ripe)
+static inline struct ripemd160 *ripemd160_init(void)
 {
-	if (!ripe)
-		ripe = malloc(sizeof(struct ripemd160));
-	ripemd160_reset(ripe);
+	struct ripemd160 *ripe;
+
+	ripe = malloc(sizeof(struct ripemd160));
+	if (ripe)
+		ripemd160_reset(ripe);
 	return ripe;
 }
 		
 static inline void ripemd160_exit(struct ripemd160 *ripe)
 {
-	free(ripe);
+	if (ripe)
+		free(ripe);
 }
 
 void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len);

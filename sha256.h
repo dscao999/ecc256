@@ -8,10 +8,10 @@
 #include <stdlib.h>
 
 #define SHA_BLOCK_LEN	64
-#define SHA_DGST_LEN	8
+#define SHA_DGST_LEN	32
 
 struct sha256{
-	unsigned int H[SHA_DGST_LEN];
+	unsigned int H[SHA_DGST_LEN/4];
 };
 
 void sha256_reset(struct sha256 *sha);
@@ -19,14 +19,17 @@ void sha256_reset(struct sha256 *sha);
 static inline struct sha256 *sha256_init(void)
 {
 	struct sha256 *sha;
+
 	sha = malloc(sizeof(struct sha256));
-	sha256_reset(sha);
+	if (sha)
+		sha256_reset(sha);
 	return sha;
 }
 
 static inline void sha256_exit(struct sha256 *sha)
 {
-	free(sha);
+	if (sha)
+		free(sha);
 }
 
 void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len);
