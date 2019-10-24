@@ -8,7 +8,7 @@ all:	rnda sha ecc aes crc b64tx ripe
 rnda: capture.o alsa_random.o sha256.o
 	$(LINK.o) $^ -lasound -o $@
 
-sha: sha.o sha256.o
+sha: sha.o sha256.o base64.o
 	$(LINK.o) $^ -o $@
 
 clean:
