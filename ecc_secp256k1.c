@@ -377,13 +377,13 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 	point_clear(&P);
 }
 
-int ecc_genkey(struct ecc_key *ecckey, int secs)
+int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 {
 	int retv;
 	struct alsa_param *alsa;
 	mpz_t x;
 
-	alsa = alsa_init(secs);
+	alsa = alsa_init(sdname, secs);
 	if (!alsa)
 		return 10000;
 	mpz_init2(x, BITLEN);
@@ -402,7 +402,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 }
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
-		const unsigned char *mesg, int len)
+		const unsigned char *mesg, int len, const char *sdname)
 {
 	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_LEN];
@@ -427,7 +427,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_init2(k, BITLEN);
 	mpz_init2(k_inv, BITLEN);
 	mpz_init2(r, BITLEN);
-	alsa = alsa_init(0);
+	alsa = alsa_init(sdname, 0);
 
 	do {
 		do {

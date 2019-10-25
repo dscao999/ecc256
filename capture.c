@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 		},
 		{}
 	};
+	char *sdname;
 	extern int opterr, optopt, optind;
 	extern char *optarg;
 
@@ -55,12 +56,16 @@ int main(int argc, char *argv[])
 			assert(0);
 		}
 	} while (!param_done);
+	if (optind < argc)
+		sdname = argv[optind];
+	else
+		sdname = "hw:0,0";
 	if (keylen <= 0)
 		keylen = 4;
 	if (keylen > 32)
 		keylen = 32;
 
-	alsa = alsa_init(sec);
+	alsa = alsa_init(sdname, sec);
 	if (!alsa)
 		return 10000;
 

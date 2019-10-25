@@ -1,6 +1,7 @@
 
 .phony: all clean release
 
+CFLAGS ?= -Wall -g
 CFLAGS += -fPIC
 
 all:	rnda sha ecc aes crc b64tx ripe

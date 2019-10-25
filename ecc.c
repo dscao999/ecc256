@@ -21,7 +21,7 @@ static inline int malloc_len(int len)
 #define IMPORT_KEY	0x40
 
 static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
-		const char *keystr)
+		const char *keystr, const char *sdname)
 {
 	unsigned int key_crc;
 	FILE *ko;
@@ -36,7 +36,7 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
 		return 4;
 	}
 	if (action & GEN_KEY) {
-		ecc_genkey(mkey, 5);
+		ecc_genkey(mkey, 5, sdname);
 		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
 		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
 		fwrite(&key_crc, sizeof(key_crc), 1, ko);
@@ -59,7 +59,8 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
 	return 0;
 }
 
-static int sign_file(const char *msgfile, const struct ecc_key *mkey, const char *sigfile)
+static int sign_file(const char *msgfile, const struct ecc_key *mkey,
+		const char *sigfile, const char *sdname)
 {
 	FILE *mi;
 	void *area;
@@ -100,7 +101,7 @@ static int sign_file(const char *msgfile, const struct ecc_key *mkey, const char
 	fclose(mi);
 	mi = NULL;
 
-	ecc_sign(sig, mkey, (unsigned char *)mesg, mstat.st_size);
+	ecc_sign(sig, mkey, (unsigned char *)mesg, mstat.st_size, sdname);
 
 	mi = fopen(sigfile, "wb");
 	if (!mi) {
@@ -208,6 +209,7 @@ int main(int argc, char *argv[])
 	int fin, opt, action, retv, fnamlen;
 	const char *keyfile, *msgfile, *keystr;
 	char *sigfile, *exbuf;
+	const char *sdname;
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
@@ -219,8 +221,9 @@ int main(int argc, char *argv[])
 	opterr = 0;
 	fin = 0;
 	action = 0;
+	sdname = NULL;
 	do {
-		opt = getopt(argc, argv, ":k:svgei:");
+		opt = getopt(argc, argv, ":a:k:svgei:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -230,6 +233,9 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			fprintf(stderr, "Unknown option: %c\n", optopt);
+			break;
+		case 'a':
+			sdname = optarg;
 			break;
 		case 'e':
 			action |= EXPORT_KEY;
@@ -258,6 +264,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "A key file must be supplied!\n");
 		return 20;
 	}
+	if (!sdname)
+		sdname = "hw:0,0";
+
 	msgfile = argv[optind];
 	if (!msgfile && (action & (SIG_VERIFY|SIGN_FILE))) {
 		fprintf(stderr, "Usage: %s -k keyfile [-g] [-s|-v]"
@@ -285,10 +294,10 @@ int main(int argc, char *argv[])
 	mkey = buffer;
 	ecc_init();
 
-	key_process(mkey, keyfile, action, keystr);
+	key_process(mkey, keyfile, action, keystr, sdname);
 
 	if (action & SIGN_FILE)
-		sign_file(msgfile, mkey, sigfile);
+		sign_file(msgfile, mkey, sigfile, sdname);
 
 	if (action & SIG_VERIFY)
 		if (!verify_file(msgfile, mkey, sigfile))

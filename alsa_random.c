@@ -3,7 +3,7 @@
 
 #define SAMPLE_LEN	176400   /* one second of background noise, 44.1k * 2 channel * 16 bit */
 
-struct alsa_param * alsa_init(int sec)
+struct alsa_param * alsa_init(const char *sdname, int sec)
 {
 	int snderr, len;
 	unsigned int srate;
@@ -27,7 +27,7 @@ struct alsa_param * alsa_init(int sec)
 		goto err_5;
 	}
 
-	alsa->pcm_name = strdup("hw:0,0");
+	alsa->pcm_name = strdup(sdname);
 	if (!alsa->pcm_name) {
 		fprintf(stderr, "Out of Memory!\n");
 		goto err_10;
@@ -75,6 +75,9 @@ struct alsa_param * alsa_init(int sec)
 	}
 	snderr = snd_pcm_hw_params_set_channels(alsa->pcm_handle, alsa->hwparams,
 				2);
+	if (snderr < 0)
+		snderr = snd_pcm_hw_params_set_channels(alsa->pcm_handle,
+				alsa->hwparams, 1);
 	if (snderr < 0) {
 		fprintf(stderr, "Cannot set channel number: %s\n",
 				snd_strerror(snderr));

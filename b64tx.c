@@ -11,13 +11,18 @@ int main(int argc, char *argv[])
 	char strbuf[64];
 	unsigned int dgst[8], bkdgst[8];
 	int sec = 0, i;
+	const char *sdname = NULL;
 
 	if (argc > 1)
 		sec = atoi(argv[1]);
 	if (sec == 0)
 		sec = 5;
+	if (argc > 2)
+		sdname = argv[2];
+	if (sdname == NULL)
+		sdname = "hw:0,0";
 
-	alsa = alsa_init(sec);
+	alsa = alsa_init(sdname, sec);
 	if (!alsa)
 		return 10000;
 
