@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			keylen = atoi(optarg);
+			if (keylen < 0)
+				keylen = 0;
 			break;
 		default:
 			assert(0);
@@ -60,8 +62,6 @@ int main(int argc, char *argv[])
 		sdname = argv[optind];
 	else
 		sdname = "hw:0,0";
-	if (keylen <= 0)
-		keylen = 4;
 	if (keylen > 32)
 		keylen = 32;
 
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 		}
 		printf("\n");
 		byte = (unsigned char *)buf;
-		if (keylen < 32) {
+		if (keylen < 32 && keylen > 0) {
 			idx = buf[31] & 0x1f;
 			for (i = 0; i < keylen; i++) {
 				printf("%02X", (unsigned int)byte[idx]);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 			}
 			printf("\n");
 		}
-	} while (++count < 10);
+	} while (++count < 20);
 
 	alsa_exit(alsa);
 	return retv;

@@ -22,6 +22,7 @@ static inline void alsa_exit(struct alsa_param *alsa)
 {
 	free(alsa->buf);
 	snd_pcm_close(alsa->pcm_handle);
+	free(alsa->pcm_name);
 	sha256_exit(alsa->sha);
 	free(alsa);
 }
