@@ -130,9 +130,10 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 	retv = 0;
 	snderr = snd_pcm_readi(alsa->pcm_handle, alsa->buf, alsa->buflen/4);
 	if (snderr != alsa->buflen/4) {
-		retv = snderr;
 		logmsg(LOG_WARNING, "Warning! Audio read failed: %s\n",
 			snd_strerror(snderr));
+		logmsg(LOG_WARNING, "A Bad Random Number might be returned.\n");
+		retv = snderr;
 	}
 	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
 	if (snderr == 0)
