@@ -19,9 +19,9 @@ void aes_block(const struct aeskey *w,
 void unaes_block(const struct aeskey *w,
 		const unsigned char *ibytes, unsigned char *obytes);
 
-int aes(const struct aeskey *w,
+int dsaes(const struct aeskey *w,
 		const unsigned char *buf, unsigned char *obuf, int len);
-int unaes(const struct aeskey *w,
+int un_dsaes(const struct aeskey *w,
 		const unsigned char *buf, unsigned char *obuf, int len);
 
 #endif /* AES_DSCAO__ */

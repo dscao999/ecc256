@@ -4,13 +4,22 @@
  * Dashi Cao, dscao999@hotmail.com, caods1@lenovo.com
  *
  */
+#include <stdio.h>
 #include <gmp.h>
 #include <assert.h>
+#include <errno.h>
 #include "ecc_secp256k1.h"
 #include "alsa_random.h"
 #include "base64.h"
+#include "dscrc.h"
+#include "dsaes.h"
+#include "ripemd160.h"
+#include "loglog.h"
 
 #define BITLEN	256
+
+#define CBYTE const unsigned char
+#define BYTE unsigned char
 
 #include "ecc_G_data.h"
 
@@ -60,8 +69,7 @@ static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 		}
 	}
 	mpz_set(x, tmpx);
-	mpz_clear(tmpx);
-	mpz_clear(fct);
+	mpz_clears(tmpx, fct);
 }
 
 static inline void a_sroot(mpz_t x, const mpz_t a)
@@ -401,8 +409,71 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 	return retv;
 }
 
+int ecc_writekey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
+{
+	unsigned int buf[ECCKEY_LEN+1];
+	struct ripemd160 *ripe;
+	struct aeskey *aes;
+	int retv = 0, no;
+
+	ripe = ripemd160_init();
+	if (!check_pointer(ripe, LOG_CRIT, nomem))
+		return NOMEM;
+	ripemd160_dgst(ripe, (CBYTE *)ps, len);
+	aes = aes_init((CBYTE *)ripe->H);
+	ripemd160_exit(ripe);
+	if (!check_pointer(aes, LOG_CRIT, nomem))
+		return NOMEM;
+	buf[ECCKEY_LEN] = crc32((CBYTE *)ecckey->pr, ECCKEY_LEN*4);
+	dsaes(aes, (CBYTE *)ecckey->pr, (BYTE *)buf, ECCKEY_LEN*4);
+	aes_exit(aes);
+
+	no = fwrite(buf, 1, (ECCKEY_LEN+1)*4, fo);
+	if (no != (ECCKEY_LEN+1)*4) {
+		logmsg(LOG_WARNING, "Cannot save key to file: %s\n", strerror(errno));
+		retv = errno;
+	}
+	return retv;
+}
+
+int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
+{
+	unsigned int buf[ECCKEY_LEN+1];
+	struct ripemd160 *ripe;
+	struct aeskey *aes;
+	int retv = 0, no;
+
+	no = fread(buf, 1, (ECCKEY_LEN+1)*4, fi);
+	if (no != (ECCKEY_LEN+1)*4) {
+		logmsg(LOG_WARNING, "Cannot read key from file: %s\n", strerror(errno));
+		retv = errno;
+		goto exit_10;
+	}
+	ripe = ripemd160_init();
+	if (!check_pointer(ripe, LOG_CRIT, nomem)) {
+		retv = NOMEM;
+		goto exit_10;
+	}
+	ripemd160_dgst(ripe, (CBYTE *)ps, len);
+	aes = aes_init((CBYTE *)ripe->H);
+	ripemd160_exit(ripe);
+	if (!check_pointer(aes, LOG_CRIT, nomem)) {
+		retv = NOMEM;
+		goto exit_10;
+	}
+	un_dsaes(aes, (CBYTE *)buf, (BYTE *)ecckey->pr, ECCKEY_LEN*4);
+	if (!crc32_check((CBYTE *)ecckey->pr, ECCKEY_LEN*4, buf[ECCKEY_LEN]))
+		logmsg(LOG_ERR, "Invalid passphrase.\n");
+	else
+		compute_public(ecckey, 0);
+
+	aes_exit(aes);
+exit_10:
+	return retv;
+}
+
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
-		const unsigned char *mesg, int len, const char *sdname)
+		CBYTE *mesg, int len, const char *sdname)
 {
 	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_LEN];
@@ -457,7 +528,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 }
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
-		const unsigned char *mesg, int len)
+		CBYTE *mesg, int len)
 {
 	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_LEN];
@@ -508,63 +579,37 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	return retv == 0;
 }
 
-static int ecc_key_export_pub(char *str, int buflen,
+int ecc_key_export(char *str, int buflen,
 		const struct ecc_key *ecckey, int flag)
 {
 	char fm;
-	int idx, len;
+	int len;
+	const unsigned int *key;
 
-	if (flag & ECCKEY_BRIEF) {
+	if (flag == 0) {
+		fm = '0';
+		key = ecckey->pr;
+	} else {
+		key = ecckey->px;
 		if (ecckey->py[ECCKEY_LEN-1] & 1)
 			fm = '1';
 		else
 			fm = '2';
-	} else {
-		fm = '0';
 	}
 	*str = fm;
-	len = bignum2str_b64(str+1, buflen-1, ecckey->px, ECCKEY_LEN);
-	if (flag & ECCKEY_BRIEF)
-		return len + 1;
-	idx = len;
-	if (len + 2 < buflen) {
-		*(str+idx+1) = '=';
-		idx += 2;
-		len = bignum2str_b64(str+idx, buflen - idx,
-				ecckey->py, ECCKEY_LEN);
-	}
-	return idx + len;
-}
-
-int ecc_key_export(char *str, int buflen,
-		const struct ecc_key *ecckey, int flag)
-{
-	int len = 0;
-
-	if (flag & ECCKEY_PUB)
-		len = ecc_key_export_pub(str, buflen, ecckey, flag);
-	return len;
+	len = bignum2str_b64(str+1, buflen-1, key, ECCKEY_LEN);
+	return len + 1;
 }
 
 int ecc_key_import(struct ecc_key *ecckey, const char *str)
 {
-	char tmpbuf[128], *eq;
-	int len;
 	struct curve_point P;
 
 	memset(ecckey, 0, sizeof(struct ecc_key));
 	switch(*str) {
-	case '*':
+	case '0':
 		str2bignum_b64(ecckey->pr, ECCKEY_LEN, str+1);
 		compute_public(ecckey, 0);
-		break;
-	case '0':
-		eq = strchr(str, '=');
-		len = eq - str;
-		memcpy(tmpbuf, str+1, len-1);
-		tmpbuf[len] = 0;
-		str2bignum_b64(ecckey->px, ECCKEY_LEN, tmpbuf);
-		str2bignum_b64(ecckey->py, ECCKEY_LEN, eq+1);
 		break;
 	case '1':
 		str2bignum_b64(ecckey->px, ECCKEY_LEN, str+1);

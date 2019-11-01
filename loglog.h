@@ -1,8 +1,13 @@
 #ifndef LOGLOG_DSCAO__
 #define LOGLOG_DSCAO__
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <syslog.h>
+
+#define NOMEM	6
+#define likely(x) __builtin_expect(x, 1)
+#define unlikely(x) __builtin_expect(x, 0)
 
 #ifdef LOGLOG
 #define loginfo(level, fmt, ap)			\
@@ -20,6 +25,13 @@ static inline void log_flush(void)
 }
 #endif
 
+static const char *nomem __attribute__((used)) = "Out of Memory!\n";
+
+static inline void vlogmsg(int level, const char *fmt, va_list ap)
+{
+	loginfo(level, fmt, ap);
+}
+
 static inline void logmsg(int level, const char *fmt, ...)
 {
 	va_list ap;
@@ -29,11 +41,15 @@ static inline void logmsg(int level, const char *fmt, ...)
 	va_end(ap);
 }
 
-static inline void check_pointer(void *ptr)
+static inline void *check_pointer(void *ptr, int level, const char *fmt, ...)
 {
+	va_list ap;
+
 	if (!ptr) {
-		logmsg(LOG_CRIT, "Out of Memory!\n");
-		exit(100);
+		va_start(ap, fmt);
+		vlogmsg(level, fmt, ap);
+		va_end(ap);
 	}
+	return ptr;
 }
 #endif  /* LOGLOG_DSCAO__ */

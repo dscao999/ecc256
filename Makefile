@@ -3,6 +3,7 @@
 
 CFLAGS ?= -Wall -g
 CFLAGS += -fPIC
+LDFLAGS += -g
 
 all:	rnda sha ecc aes crc b64tx ripe
 
@@ -15,7 +16,8 @@ sha: sha.o sha256.o base64.o
 clean:
 	rm -f *.o rnda sha ecc aes crc crctbl b64tx ripe
 
-ecc: ecc.o ecc_secp256k1.o alsa_random.o sha256.o dscrc.o base64.o
+ecc: ecc.o ecc_secp256k1.o alsa_random.o sha256.o dscrc.o base64.o \
+	dsaes.o ripemd160.o
 	$(LINK.o) $^ -lgmp -lasound -o $@
 
 aes: aes.o dsaes.o

@@ -8,15 +8,11 @@
  */
 
 #define ECCKEY_LEN	8
-#define ECCKEY_PRI	0x8000
-#define ECCKEY_PUB	0x4000
-#define ECCKEY_BRIEF	0x0100
 
 struct ecc_key {
 	unsigned int pr[ECCKEY_LEN];
 	unsigned int px[ECCKEY_LEN];
 	unsigned int py[ECCKEY_LEN];
-	const char *sd;
 };
 struct ecc_sig {
 	unsigned int sig_r[ECCKEY_LEN];
@@ -27,6 +23,9 @@ void ecc_init(void);
 void ecc_exit(void);
 
 int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname);
+int ecc_writekey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len);
+int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len);
+
 int ecc_key_export(char *str, int len, const struct ecc_key *ecckey, int flag);
 int ecc_key_import(struct ecc_key *ecckey, const char *str);
 

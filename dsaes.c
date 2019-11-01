@@ -274,7 +274,7 @@ struct aeskey * aes_init(const unsigned char *key)
 	return w;
 }
 
-int aes(const struct aeskey *key, const unsigned char *ibuf,
+int dsaes(const struct aeskey *key, const unsigned char *ibuf,
 		unsigned char *obuf, int len)
 {
 	const unsigned char *blkin;
@@ -294,7 +294,7 @@ int aes(const struct aeskey *key, const unsigned char *ibuf,
 	return 0;
 }
 
-int unaes(const struct aeskey *key, const unsigned char *ibuf,
+int un_dsaes(const struct aeskey *key, const unsigned char *ibuf,
 		unsigned char *obuf, int len)
 {
 	const unsigned char *blkin;

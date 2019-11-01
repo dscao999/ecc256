@@ -29,7 +29,7 @@ static void suite_test_1(FILE *tf)
 		}
 		if (feof(tf))
 			break;
-		aes(w, plain, cipher, 16);
+		dsaes(w, plain, cipher, 16);
 		printf("Plain: ");
 		for (i = 0; i < 16; i++)
 			printf("%02X", (unsigned int)plain[i]);
@@ -37,7 +37,7 @@ static void suite_test_1(FILE *tf)
 		for (i = 0; i < 16; i++)
 			printf("%02X", (unsigned int)cipher[i]);
 		printf("\n");
-		unaes(w, cipher, decipr, 16);
+		un_dsaes(w, cipher, decipr, 16);
 		printf("Compare: %d\n", memcmp(plain, decipr, 16));
 		while (!feof (tf) && fgetc(tf) != '\n')
 			;
@@ -69,12 +69,12 @@ static void suite_test_2(FILE *tf)
 			printf("%02X", (unsigned int)key[i]);
 		w = aes_init(key);
 
-		aes(w, plain, cipher, 16);
+		dsaes(w, plain, cipher, 16);
 		printf("|");
 		for (i = 0; i < 16; i++)
 			printf("%02X", (unsigned int)cipher[i]);
 		printf("\n");
-		unaes(w, cipher, decipr, 16);
+		un_dsaes(w, cipher, decipr, 16);
 		printf("Compare: %d\n", memcmp(plain, decipr, 16));
 		while (!feof (tf) && fgetc(tf) != '\n')
 			;
@@ -98,7 +98,7 @@ static void suite_test_3(FILE *tf)
 	plain[0] = 0x80;
 
 	do {
-		aes(w, plain, cipher, 16);
+		dsaes(w, plain, cipher, 16);
 		printf("Plain: ");
 		for (i = 0; i < 16; i++)
 			printf("%02X", (unsigned int)plain[i]);
@@ -106,13 +106,13 @@ static void suite_test_3(FILE *tf)
 		for (i = 0; i < 16; i++)
 			printf("%02X", (unsigned int)cipher[i]);
 		printf("\n");
-		unaes(w, cipher, decipr, 16);
+		un_dsaes(w, cipher, decipr, 16);
 		printf("Compare: %d\n", memcmp(plain, decipr, 16));
 		for (i = 15; i > 0; i--)
 			plain[i] = (plain[i] >> 1)| ((plain[i-1] & 1) << 7);
 		plain[0] = (plain[0] >> 1) | 0x80;
 	} while (plain[15] != 0xff);
-	aes(w, plain, cipher, 16);
+	dsaes(w, plain, cipher, 16);
 	printf("Plain: ");
 	for (i = 0; i < 16; i++)
 		printf("%02X", (unsigned int)plain[i]);
@@ -120,7 +120,7 @@ static void suite_test_3(FILE *tf)
 	for (i = 0; i < 16; i++)
 		printf("%02X", (unsigned int)cipher[i]);
 	printf("\n");
-	unaes(w, cipher, decipr, 16);
+	un_dsaes(w, cipher, decipr, 16);
 	printf("Compare: %d\n", memcmp(plain, decipr, 16));
 
 	aes_exit(w);

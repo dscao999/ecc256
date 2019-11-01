@@ -23,7 +23,6 @@ static inline int malloc_len(int len)
 static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
 		const char *keystr, const char *sdname)
 {
-	unsigned int key_crc;
 	FILE *ko;
 
 	if ((action & GEN_KEY) || (action & IMPORT_KEY))
@@ -37,22 +36,12 @@ static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
 	}
 	if (action & GEN_KEY) {
 		ecc_genkey(mkey, 5, sdname);
-		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
-		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
-		fwrite(&key_crc, sizeof(key_crc), 1, ko);
+		ecc_writekey(mkey, ko, NULL, 0);
 	} else if (action & IMPORT_KEY) {
 		ecc_key_import(mkey, keystr);
-		key_crc = crc32((unsigned char *)mkey, sizeof(struct ecc_key));
-		fwrite(mkey, sizeof(struct ecc_key), 1, ko);
-		fwrite(&key_crc, sizeof(key_crc), 1, ko);
+		ecc_writekey(mkey, ko, NULL, 0);
 	} else {
-		fread(mkey, sizeof(struct ecc_key), 1, ko);
-		fread(&key_crc, sizeof(key_crc), 1, ko);
-		if (!crc32_check((unsigned char *)mkey,
-				sizeof(struct ecc_key), key_crc)) {
-			fprintf(stderr, "Key corrupted!\n");
-			return 16;
-		}
+		ecc_readkey(mkey, ko, NULL, 0);
 	}
 
 	fclose(ko);
@@ -305,7 +294,7 @@ int main(int argc, char *argv[])
 
 	if (action & EXPORT_KEY) {
 		exbuf = malloc(256);
-		ecc_key_export(exbuf, 256, mkey, ECCKEY_PUB|ECCKEY_BRIEF);
+		ecc_key_export(exbuf, 256, mkey, 0);
 		printf("Pub: %s\n", exbuf);
 		free(exbuf);
 	}
