@@ -18,8 +18,9 @@ static inline int malloc_len(int len)
 #define GEN_KEY		0x01
 #define SIGN_FILE	0x02
 #define SIG_VERIFY	0x04
-#define EXPORT_KEY	0x80
 #define IMPORT_KEY	0x40
+#define EXPORT_KEY	0x80
+#define EXPORT_PRIV	0x10
 
 struct keyparam {
 	struct ecc_key key;
@@ -33,6 +34,7 @@ static int key_process(struct keyparam *param, int action)
 {
 	FILE *ko;
 	int plen = 0;
+	int retv = 0;
 
 	if ((action & GEN_KEY) || (action & IMPORT_KEY))
 		ko = fopen(param->keyfile, "wb");
@@ -52,11 +54,11 @@ static int key_process(struct keyparam *param, int action)
 		ecc_key_import(&param->key, param->keystr);
 		ecc_writkey(&param->key, ko, param->pass, plen);
 	} else {
-		ecc_readkey(&param->key, ko, param->pass, plen);
+		retv = ecc_readkey(&param->key, ko, param->pass, plen);
 	}
 
 	fclose(ko);
-	return 0;
+	return retv;
 }
 
 static int sign_file(const struct keyparam *param,
@@ -74,49 +76,45 @@ static int sign_file(const struct keyparam *param,
 	sysret = stat(msgfile, &mstat);
 	if (sysret == -1) {
 		fprintf(stderr, "File %s error: %s\n", msgfile, strerror(errno));
-		return 8;
+		return errno;
 	}
 	len = malloc_len(mstat.st_size);
 	area = malloc(len+sizeof(struct ecc_sig));
-	if (!area) {
-		fprintf(stderr, "Out of Memory!\n");
-		return 10000;
-	}
+	if (!check_pointer(area, LOG_CRIT, nomem))
+		return NOMEM;
 	mesg = area;
 	sig =  area + len;
 
 	mi = fopen(msgfile, "rb");
 	if (!mi) {
-		fprintf(stderr, "Cannot openfile %s for reading.\n",
-				msgfile);
-		retv = 4;
+		logmsg(LOG_ERR, "Cannot openfile %s for reading.\n", msgfile);
+		retv = errno;
 		goto exit_10;
 	}
 	sysret = fread(mesg, 1, mstat.st_size, mi);
 	if (sysret != mstat.st_size) {
-		fprintf(stderr, "Read file %s error\n", msgfile);
+		logmsg(LOG_ERR, "Read file %s error\n", msgfile);
 		retv = 12;
 		goto exit_20;
 	}
 	fclose(mi);
 	mi = NULL;
 
-	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size, param->sdname);
+	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size,
+			param->sdname);
 
 	mi = fopen(sigfile, "wb");
 	if (!mi) {
-		fprintf(stderr, "Cannot open file %s for writing.\n",
-			sigfile);
-		retv = 4;
+		logmsg(LOG_ERR, "Cannot open file %s for writing.\n", sigfile);
+		retv = errno;
 		goto exit_20;
 	}
 	sysret = fwrite(sig, sizeof(struct ecc_sig), 1, mi);
 	if (sysret != 1)
-		fprintf(stderr, "Write error %s: %s\n", sigfile, strerror(errno));
+		logmsg(LOG_ERR, "Write error %s: %s\n", sigfile,
+				strerror(errno));
 	crc = crc32((unsigned char *)sig, sizeof(struct ecc_sig));
 	sysret = fwrite(&crc, sizeof(crc), 1, mi);
-	fclose(mi);
-	mi = NULL;
 
 exit_20:
 	if (mi)
@@ -132,7 +130,7 @@ static int verify_file(const struct keyparam *param,
 	FILE *mi;
 	int retv, sysret;
 	struct stat fst;
-	void *area;
+	void *area = NULL;
 	unsigned char *mesg;
 	struct ecc_sig *sig;
 	unsigned int crc;
@@ -141,18 +139,18 @@ static int verify_file(const struct keyparam *param,
 	retv = 0;
 	sysret = stat(msgfile, &fst);
 	if (sysret == -1) {
-		fprintf(stderr, "File %s error: %s\n", msgfile,
+		logmsg(LOG_ERR, "File %s error: %s\n", msgfile,
 			strerror(errno));
-		return -1;
+		return errno;
 	}
 	mi = fopen(msgfile, "rb");
 	if (!mi) {
-		fprintf(stderr, "Cannot open file %s for read.\n", msgfile);
-		return -1;
+		logmsg(LOG_ERR, "Cannot open file %s for read.\n", msgfile);
+		return errno;
 	}
 	area = malloc(malloc_len(fst.st_size)+sizeof(struct ecc_sig));
-	if (!area) {
-		retv = -10000;
+	if (!check_pointer(area, LOG_CRIT, nomem)) {
+		retv = NOMEM;
 		goto exit_10;
 	}
 	len = fst.st_size;
@@ -160,17 +158,17 @@ static int verify_file(const struct keyparam *param,
 	mesg = area;
 	sysret = fread(mesg, 1, fst.st_size, mi);
 	if (sysret != fst.st_size) {
-		fprintf(stderr, "File read error!\n");
-		goto exit_10;
+		logmsg(LOG_ERR, "File read error!\n");
+		goto exit_20;
 	}
 	fclose(mi);
 	mi = NULL;
 
 	sysret = stat(sigfile, &fst);
 	if (sysret == -1) {
-		fprintf(stderr, "File %s error: %s\n", sigfile,
+		logmsg(LOG_ERR, "File %s error: %s\n", sigfile,
 			strerror(errno));
-		retv = -1;
+		retv = errno;
 		goto exit_20;
 	}
 	if (fst.st_size != 68) {
@@ -179,16 +177,14 @@ static int verify_file(const struct keyparam *param,
 	}
 	mi = fopen(sigfile, "rb");
 	if (!mi) {
-		fprintf(stderr, "Cannot open file %s for reading.\n", sigfile);
-		retv = -4;
+		logmsg(LOG_ERR, "Cannot open file %s for reading.\n", sigfile);
+		retv = errno;
 		goto exit_20;
 	}
 	fread(sig, sizeof(struct ecc_sig), 1, mi);
 	fread(&crc, sizeof(crc), 1, mi);
-	fclose(mi);
-	mi = NULL;
 	if (!crc32_check((unsigned char *)sig, sizeof(struct ecc_sig), crc)) {
-		fprintf(stderr, "Corrupted signature!\n");
+		logmsg(LOG_ERR, "Corrupted signature!\n");
 		goto exit_20;
 	}
 	retv = ecc_verify(sig, &param->key, mesg, len);
@@ -207,7 +203,7 @@ int main(int argc, char *argv[])
 	struct keyparam *kparam;
 	void *buffer;
 	int fin, opt, action, retv, fnamlen;
-	const char *msgfile;
+	const char *msgfile, *fbname;
 	char *sigfile, *exbuf;
 	extern int optind, opterr, optopt;
 	extern char *optarg;
@@ -225,7 +221,7 @@ int main(int argc, char *argv[])
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":a:k:svgei:p:");
+		opt = getopt(argc, argv, ":a:k:svge::i:p:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -244,6 +240,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'e':
 			action |= EXPORT_KEY;
+			if (optarg)
+				action |= EXPORT_PRIV;
 			break;
 		case 'i':
 			action |= IMPORT_KEY;
@@ -291,7 +289,11 @@ int main(int argc, char *argv[])
 	else {
 		sigfile = buffer;
 		if (fnamlen > 0) {
-			strcpy(sigfile, msgfile);
+			fbname = strrchr(msgfile, '/');
+			if (fbname)
+				strcpy(sigfile, fbname);
+			else
+				strcpy(sigfile, msgfile);
 			strcat(sigfile, ".sig");
 			exbuf = buffer + fnamlen + 8;
 		} else
@@ -300,7 +302,8 @@ int main(int argc, char *argv[])
 
 	ecc_init();
 
-	key_process(kparam, action);
+	if (key_process(kparam, action))
+		return 1;
 
 	if (action & SIGN_FILE)
 		sign_file(kparam, msgfile, sigfile);
@@ -310,8 +313,11 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Signuature verification failed!\n");
 
 	if (action & EXPORT_KEY) {
-		ecc_key_export(exbuf, 256, &kparam->key, 0);
-		printf("Pub: %s\n", exbuf);
+		if (action & EXPORT_PRIV)
+			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPRIV);
+		else
+			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPUB);
+		printf("%s\n", exbuf);
 	}
 
 	free(buffer);

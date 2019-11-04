@@ -8,6 +8,8 @@
  */
 
 #define ECCKEY_INT_LEN	8
+#define ECCKEY_EXPRIV	0x81
+#define ECCKEY_EXPUB	0x7e
 
 struct ecc_key {
 	unsigned int pr[ECCKEY_INT_LEN];

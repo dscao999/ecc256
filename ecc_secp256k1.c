@@ -481,9 +481,10 @@ int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
 		goto exit_10;
 	}
 	un_dsaes(aes, buf, (BYTE *)ecckey->pr, reclen*4);
-	if (crc32((CBYTE *)ecckey->pr, reclen*4))
+	if (crc32((CBYTE *)ecckey->pr, reclen*4)) {
 		logmsg(LOG_ERR, "Invalid passphrase.\n");
-	else
+		retv = 1;
+	} else
 		compute_public(ecckey, 0);
 
 	aes_exit(aes);
@@ -606,19 +607,20 @@ int ecc_key_export(char *str, int buflen,
 	int len;
 	const unsigned int *key;
 
-	if (flag == 0) {
+	if (flag == ECCKEY_EXPRIV) {
 		fm = '0';
 		key = ecckey->pr;
-	} else {
+	} else if (flag == ECCKEY_EXPUB) {
 		key = ecckey->px;
 		if (ecckey->py[ECCKEY_INT_LEN-1] & 1)
 			fm = '1';
 		else
 			fm = '2';
-	}
+	} else
+		return 1;
 	*str = fm;
 	len = bignum2str_b64(str+1, buflen-1, key, ECCKEY_INT_LEN);
-	return len + 1;
+	return len + 1 > buflen? 2:0;
 }
 
 int ecc_key_import(struct ecc_key *ecckey, const char *str)
