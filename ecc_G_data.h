@@ -1,6 +1,6 @@
 struct plane_point {
-	unsigned int x[ECCKEY_LEN];
-	unsigned int y[ECCKEY_LEN];
+	unsigned int x[ECCKEY_INT_LEN];
+	unsigned int y[ECCKEY_INT_LEN];
 };
 
 static const struct plane_point Gxy[256] = {

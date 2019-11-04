@@ -9,6 +9,16 @@
 #define likely(x) __builtin_expect(x, 1)
 #define unlikely(x) __builtin_expect(x, 0)
 
+static inline unsigned int swap32(unsigned int x)
+{
+	union {
+		unsigned int v;
+		unsigned char b[4];
+	} u;
+	u.v = x;
+	return (u.b[0] << 24)|(u.b[1] << 16)|(u.b[2] << 8)|u.b[3];
+}
+
 #ifdef LOGLOG
 #define loginfo(level, fmt, ap)			\
 	do {					\

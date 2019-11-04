@@ -49,7 +49,7 @@ static inline int moduli_3_4(void)
 
 static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 {
-	unsigned int w[ECCKEY_LEN], cw;
+	unsigned int w[ECCKEY_INT_LEN], cw;
 	size_t rlen;
 	mpz_t fct, tmpx;
 	int i, j;
@@ -131,8 +131,8 @@ static int is_on_curve(const struct curve_point *P)
 static inline void point_assign(struct curve_point *P,
 			const unsigned int px[], const unsigned int py[])
 {
-	mpz_import(P->x, ECCKEY_LEN, 1, 4, 0, 0, px);
-	mpz_import(P->y, ECCKEY_LEN, 1, 4, 0, 0, py);
+	mpz_import(P->x, ECCKEY_INT_LEN, 1, 4, 0, 0, px);
+	mpz_import(P->y, ECCKEY_INT_LEN, 1, 4, 0, 0, py);
 	assert(is_on_curve(P));
 }
 
@@ -244,14 +244,14 @@ static inline void point_double(struct curve_point *R,
 
 static void point_x_num_G(struct curve_point *R, mpz_t num)
 {
-	unsigned int x[ECCKEY_LEN], cnum;
+	unsigned int x[ECCKEY_INT_LEN], cnum;
 	size_t count;
 	int i, j, idx;
 
 	point_set_ui(R, 0, 0);
 
 	mpz_export(x, &count, 1, 4, 0, 0, num);
-	assert(count <= ECCKEY_LEN);
+	assert(count <= ECCKEY_INT_LEN);
 	idx = 0;
 	for (i = count-1; i >= 0; i--) {
 		cnum = x[i];
@@ -268,7 +268,7 @@ static void point_x_num_nG(struct curve_point *R, const mpz_t num,
 			const struct curve_point *H)
 {
 	struct curve_point S, tmpR;
-	unsigned int x[ECCKEY_LEN], cnum;
+	unsigned int x[ECCKEY_INT_LEN], cnum;
 	size_t count;
 	int i, j;
 
@@ -278,7 +278,7 @@ static void point_x_num_nG(struct curve_point *R, const mpz_t num,
 	point_set(&S, H);
 
 	mpz_export(x, &count, 1, 4, 0, 0, num);
-	assert(count <= ECCKEY_LEN);
+	assert(count <= ECCKEY_INT_LEN);
 	for (i = count-1; i >= 0; i--) {
 		cnum = x[i];
 		for (j = 0; j < 32; j++) {
@@ -297,7 +297,7 @@ static int ecc_check(void)
 {
 	int retv = 0;
 	struct curve_point P;
-	unsigned int x[ECCKEY_LEN], y[ECCKEY_LEN];
+	unsigned int x[ECCKEY_INT_LEN], y[ECCKEY_INT_LEN];
 	size_t count_x, count_y;
 
 	point_init(&P);
@@ -316,9 +316,9 @@ void ecc_init(void)
 	int i;
 
 	mpz_init2(epm, BITLEN);
-	mpz_import(epm, ECCKEY_LEN, 1, 4, 0, 0, EPM);
+	mpz_import(epm, ECCKEY_INT_LEN, 1, 4, 0, 0, EPM);
 	mpz_init2(epn, BITLEN);
-	mpz_import(epn, ECCKEY_LEN, 1, 4, 0, 0, EPN);
+	mpz_import(epn, ECCKEY_INT_LEN, 1, 4, 0, 0, EPN);
 	for (i = 0; i < 256; i++) {
 		point_init(G+i);
 		point_assign(G+i, (Gxy+i)->x, (Gxy+i)->y);
@@ -356,7 +356,7 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 
 	switch(flag) {
 	case 0:
-		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
+		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
 		point_x_num_G(&P, x);
 		mpz_export(ecckey->px, &count_x, 1, 4, 0, 0, P.x);
 		mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, P.y);
@@ -364,16 +364,16 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 		break;
 	case 1:
 	case 2:
-		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->px);
+		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->px);
 		mpz_init2(tmp, 2*BITLEN);
 		mpz_mul_mod(tmp, x, x);
 		mpz_mul_mod(tmp, tmp, x);
 		mpz_add_ui_mod(tmp, tmp, b);
 		a_sroot(x, tmp);
 		mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
-		if ((flag == 1 && (ecckey->py[ECCKEY_LEN-1] & 1) == 0) ||
+		if ((flag == 1 && (ecckey->py[ECCKEY_INT_LEN-1] & 1) == 0) ||
 				(flag == 0 && 
-				(ecckey->py[ECCKEY_LEN-1] & 1) == 1)) {
+				(ecckey->py[ECCKEY_INT_LEN-1] & 1) == 1)) {
 			mpz_sub(x, epm, x);
 			mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
 		}
@@ -398,7 +398,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 
 	do {
 		retv = alsa_random(alsa, ecckey->pr);
-		mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->pr);
+		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0);
 
 	compute_public(ecckey, 0);
@@ -409,42 +409,61 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 	return retv;
 }
 
-int ecc_writekey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
+int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
 {
-	unsigned int buf[ECCKEY_LEN+1];
+	void *buf;
 	struct ripemd160 *ripe;
 	struct aeskey *aes;
-	int retv = 0, no;
+	int retv = 0, no, reclen;
+	unsigned int *crc, ucrc;
 
-	ripe = ripemd160_init();
-	if (!check_pointer(ripe, LOG_CRIT, nomem))
+	reclen = ECCKEY_INT_LEN + AES128_BLOCK_LEN/4;
+	buf = malloc(reclen*8);
+	if (!check_pointer(buf, LOG_CRIT, nomem))
 		return NOMEM;
+	ripe = ripemd160_init();
+	if (!check_pointer(ripe, LOG_CRIT, nomem)) {
+		retv = NOMEM;
+		goto exit_10;
+	}
 	ripemd160_dgst(ripe, (CBYTE *)ps, len);
 	aes = aes_init((CBYTE *)ripe->H);
 	ripemd160_exit(ripe);
-	if (!check_pointer(aes, LOG_CRIT, nomem))
-		return NOMEM;
-	buf[ECCKEY_LEN] = crc32((CBYTE *)ecckey->pr, ECCKEY_LEN*4);
-	dsaes(aes, (CBYTE *)ecckey->pr, (BYTE *)buf, ECCKEY_LEN*4);
+	if (!check_pointer(aes, LOG_CRIT, nomem)) {
+		retv = NOMEM;
+		goto exit_10;
+	}
+	memcpy(buf, ecckey->pr, ECCKEY_INT_LEN*4);
+	crc = buf + (reclen - 1) * 4;
+	ucrc = crc32(buf, (reclen - 1)*4);
+	*crc = swap32(ucrc);
+	dsaes(aes, buf, buf+reclen*4, reclen*4);
 	aes_exit(aes);
 
-	no = fwrite(buf, 1, (ECCKEY_LEN+1)*4, fo);
-	if (no != (ECCKEY_LEN+1)*4) {
+	no = fwrite(buf+reclen*4, 1, reclen*4, fo);
+	if (no != reclen*4) {
 		logmsg(LOG_WARNING, "Cannot save key to file: %s\n", strerror(errno));
 		retv = errno;
 	}
+exit_10:
+	free(buf);
 	return retv;
 }
 
 int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
 {
-	unsigned int buf[ECCKEY_LEN+1];
+	void *buf;
 	struct ripemd160 *ripe;
 	struct aeskey *aes;
-	int retv = 0, no;
+	int retv = 0, no, reclen;
 
-	no = fread(buf, 1, (ECCKEY_LEN+1)*4, fi);
-	if (no != (ECCKEY_LEN+1)*4) {
+	reclen = ECCKEY_INT_LEN+AES128_BLOCK_LEN/4;
+	buf = malloc(reclen*4);
+	if (!check_pointer(buf, LOG_CRIT, nomem))
+		return NOMEM;
+
+	no = fread(buf, 1, reclen*4, fi);
+	if (no != reclen*4) {
 		logmsg(LOG_WARNING, "Cannot read key from file: %s\n", strerror(errno));
 		retv = errno;
 		goto exit_10;
@@ -461,14 +480,15 @@ int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
 		retv = NOMEM;
 		goto exit_10;
 	}
-	un_dsaes(aes, (CBYTE *)buf, (BYTE *)ecckey->pr, ECCKEY_LEN*4);
-	if (!crc32_check((CBYTE *)ecckey->pr, ECCKEY_LEN*4, buf[ECCKEY_LEN]))
+	un_dsaes(aes, buf, (BYTE *)ecckey->pr, reclen*4);
+	if (crc32((CBYTE *)ecckey->pr, reclen*4))
 		logmsg(LOG_ERR, "Invalid passphrase.\n");
 	else
 		compute_public(ecckey, 0);
 
 	aes_exit(aes);
 exit_10:
+	free(buf);
 	return retv;
 }
 
@@ -476,8 +496,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len, const char *sdname)
 {
 	struct sha256 *sha;
-	unsigned int dgst[ECCKEY_LEN];
-	unsigned int kx[ECCKEY_LEN];
+	unsigned int dgst[ECCKEY_INT_LEN];
+	unsigned int kx[ECCKEY_INT_LEN];
 	struct alsa_param *alsa;
 	mpz_t k, r, s, dst, k_inv, prikey;
 	struct curve_point K;
@@ -485,13 +505,13 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	sha = sha256_init();
 	sha256(sha, mesg, len);
-	memcpy(dgst, sha->H, ECCKEY_LEN*4);
+	memcpy(dgst, sha->H, ECCKEY_INT_LEN*4);
 	sha256_exit(sha);
 
 	mpz_init2(dst, BITLEN);
-	mpz_import(dst, ECCKEY_LEN, 1, 4, 0, 0, dgst);
+	mpz_import(dst, ECCKEY_INT_LEN, 1, 4, 0, 0, dgst);
 	mpz_init2(prikey, BITLEN);
-	mpz_import(prikey, ECCKEY_LEN, 1, 4, 0, 0, key->pr);
+	mpz_import(prikey, ECCKEY_INT_LEN, 1, 4, 0, 0, key->pr);
 
 	point_init(&K);
 	mpz_init2(s, 2*BITLEN);
@@ -503,7 +523,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	do {
 		do {
 			alsa_random(alsa, kx);
-			mpz_import(k, ECCKEY_LEN, 1, 4, 0, 0, kx);
+			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 
 		point_x_num_G(&K, k);
@@ -531,7 +551,7 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
 {
 	struct sha256 *sha;
-	unsigned int dgst[ECCKEY_LEN];
+	unsigned int dgst[ECCKEY_INT_LEN];
 	mpz_t x, s, r;
 	mpz_t w, u1, u2;
 	struct curve_point H, Q;
@@ -540,17 +560,17 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 	retv = 0;
 	mpz_init2(s, BITLEN);
 	mpz_init2(r, BITLEN);
-	mpz_import(s, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_s);
-	mpz_import(r, ECCKEY_LEN, 1, 4, 0, 0, sig->sig_r);
+	mpz_import(s, ECCKEY_INT_LEN, 1, 4, 0, 0, sig->sig_s);
+	mpz_import(r, ECCKEY_INT_LEN, 1, 4, 0, 0, sig->sig_r);
 	assert(mpz_cmp(s, epn) < 0 && mpz_cmp(r, epn) < 0);
 
 	sha = sha256_init();
 	sha256(sha, mesg, len);
-	memcpy(dgst, sha->H, ECCKEY_LEN*4);
+	memcpy(dgst, sha->H, ECCKEY_INT_LEN*4);
 	sha256_exit(sha);
 
 	mpz_init2(x, BITLEN);
-	mpz_import(x, ECCKEY_LEN, 1, 4, 0, 0, dgst);
+	mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, dgst);
 
 	mpz_init2(w, BITLEN);
 	mpz_invert(w, s, epn);
@@ -591,13 +611,13 @@ int ecc_key_export(char *str, int buflen,
 		key = ecckey->pr;
 	} else {
 		key = ecckey->px;
-		if (ecckey->py[ECCKEY_LEN-1] & 1)
+		if (ecckey->py[ECCKEY_INT_LEN-1] & 1)
 			fm = '1';
 		else
 			fm = '2';
 	}
 	*str = fm;
-	len = bignum2str_b64(str+1, buflen-1, key, ECCKEY_LEN);
+	len = bignum2str_b64(str+1, buflen-1, key, ECCKEY_INT_LEN);
 	return len + 1;
 }
 
@@ -608,21 +628,21 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str)
 	memset(ecckey, 0, sizeof(struct ecc_key));
 	switch(*str) {
 	case '0':
-		str2bignum_b64(ecckey->pr, ECCKEY_LEN, str+1);
+		str2bignum_b64(ecckey->pr, ECCKEY_INT_LEN, str+1);
 		compute_public(ecckey, 0);
 		break;
 	case '1':
-		str2bignum_b64(ecckey->px, ECCKEY_LEN, str+1);
+		str2bignum_b64(ecckey->px, ECCKEY_INT_LEN, str+1);
 		compute_public(ecckey, 1);
 		break;
 	case '2':
-		str2bignum_b64(ecckey->px, ECCKEY_LEN, str+1);
+		str2bignum_b64(ecckey->px, ECCKEY_INT_LEN, str+1);
 		compute_public(ecckey, 2);
 		break;
 	}
 	point_init(&P);
-	mpz_import(P.x, ECCKEY_LEN, 1, 4, 0, 0, ecckey->px);
-	mpz_import(P.y, ECCKEY_LEN, 1, 4, 0, 0, ecckey->py);
+	mpz_import(P.x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->px);
+	mpz_import(P.y, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->py);
 	is_on_curve(&P);
 	point_clear(&P);
 	return 0;

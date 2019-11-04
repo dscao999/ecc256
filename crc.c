@@ -17,8 +17,7 @@ int main(int argc, char *argv[])
 	len = 0;
 	do {
 		ln = readline("? ");
-		len = strlen(ln);
-		if (len == 0)
+		if (!ln || (len = strlen(ln)) == 0)
 			break;
 
 		memcpy(dat, ln, len);

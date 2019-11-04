@@ -8,6 +8,7 @@
 #include <assert.h>
 #include "ecc_secp256k1.h"
 #include "dscrc.h"
+#include "loglog.h"
 
 static inline int malloc_len(int len)
 {
@@ -20,36 +21,46 @@ static inline int malloc_len(int len)
 #define EXPORT_KEY	0x80
 #define IMPORT_KEY	0x40
 
-static int key_process(struct ecc_key *mkey, const char *keyfile, int action,
-		const char *keystr, const char *sdname)
+struct keyparam {
+	struct ecc_key key;
+	const char *keyfile;
+	const char *sdname;
+	const char *pass;
+	const char *keystr;
+};
+
+static int key_process(struct keyparam *param, int action)
 {
 	FILE *ko;
+	int plen = 0;
 
 	if ((action & GEN_KEY) || (action & IMPORT_KEY))
-		ko = fopen(keyfile, "wb");
+		ko = fopen(param->keyfile, "wb");
 	else
-		ko = fopen(keyfile, "rb");
+		ko = fopen(param->keyfile, "rb");
 	if (!ko) {
 		fprintf(stderr, "Cannot open key file %s for read/write!\n",
-				keyfile);
+				param->keyfile);
 		return 4;
 	}
+	if (param->pass)
+		plen = strlen(param->pass);
 	if (action & GEN_KEY) {
-		ecc_genkey(mkey, 5, sdname);
-		ecc_writekey(mkey, ko, NULL, 0);
+		ecc_genkey(&param->key, 5, param->sdname);
+		ecc_writkey(&param->key, ko, param->pass, plen);
 	} else if (action & IMPORT_KEY) {
-		ecc_key_import(mkey, keystr);
-		ecc_writekey(mkey, ko, NULL, 0);
+		ecc_key_import(&param->key, param->keystr);
+		ecc_writkey(&param->key, ko, param->pass, plen);
 	} else {
-		ecc_readkey(mkey, ko, NULL, 0);
+		ecc_readkey(&param->key, ko, param->pass, plen);
 	}
 
 	fclose(ko);
 	return 0;
 }
 
-static int sign_file(const char *msgfile, const struct ecc_key *mkey,
-		const char *sigfile, const char *sdname)
+static int sign_file(const struct keyparam *param,
+		const char *msgfile, const char *sigfile)
 {
 	FILE *mi;
 	void *area;
@@ -90,7 +101,7 @@ static int sign_file(const char *msgfile, const struct ecc_key *mkey,
 	fclose(mi);
 	mi = NULL;
 
-	ecc_sign(sig, mkey, (unsigned char *)mesg, mstat.st_size, sdname);
+	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size, param->sdname);
 
 	mi = fopen(sigfile, "wb");
 	if (!mi) {
@@ -115,8 +126,8 @@ exit_10:
 	return retv;
 }
 
-static int verify_file(const char *msgfile, const struct ecc_key *mkey,
-		const char *sigfile)
+static int verify_file(const struct keyparam *param, 
+		const char *msgfile, const char *sigfile)
 {
 	FILE *mi;
 	int retv, sysret;
@@ -180,7 +191,7 @@ static int verify_file(const char *msgfile, const struct ecc_key *mkey,
 		fprintf(stderr, "Corrupted signature!\n");
 		goto exit_20;
 	}
-	retv = ecc_verify(sig, mkey, mesg, len);
+	retv = ecc_verify(sig, &param->key, mesg, len);
 
 exit_20:
 	if (area)
@@ -193,26 +204,28 @@ exit_10:
 
 int main(int argc, char *argv[])
 {
-	struct ecc_key *mkey;
+	struct keyparam *kparam;
 	void *buffer;
 	int fin, opt, action, retv, fnamlen;
-	const char *keyfile, *msgfile, *keystr;
+	const char *msgfile;
 	char *sigfile, *exbuf;
-	const char *sdname;
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
-	retv = 0;
-	keyfile = NULL;
-	msgfile = NULL;
+	kparam = malloc(sizeof(struct keyparam));
+	if (!check_pointer(kparam, LOG_CRIT, nomem))
+		return NOMEM;
+	kparam->pass= NULL;
+	kparam->keyfile = NULL;
+	kparam->keystr = NULL;
+	kparam->sdname = NULL;
 	sigfile = NULL;
-	keystr = NULL;
+	retv = 0;
 	opterr = 0;
 	fin = 0;
 	action = 0;
-	sdname = NULL;
 	do {
-		opt = getopt(argc, argv, ":a:k:svgei:");
+		opt = getopt(argc, argv, ":a:k:svgei:p:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -223,18 +236,21 @@ int main(int argc, char *argv[])
 		case '?':
 			fprintf(stderr, "Unknown option: %c\n", optopt);
 			break;
+		case 'p':
+			kparam->pass= optarg;
+			break;
 		case 'a':
-			sdname = optarg;
+			kparam->sdname = optarg;
 			break;
 		case 'e':
 			action |= EXPORT_KEY;
 			break;
 		case 'i':
 			action |= IMPORT_KEY;
-			keystr = optarg;
+			kparam->keystr = optarg;
 			break;
 		case 'k':
-			keyfile = optarg;
+			kparam->keyfile = optarg;
 			break;
 		case 's':
 			action |= SIGN_FILE;
@@ -249,12 +265,12 @@ int main(int argc, char *argv[])
 			assert(0);
 		}
 	} while (fin == 0);
-	if (!keyfile) {
+	if (!kparam->keyfile) {
 		fprintf(stderr, "A key file must be supplied!\n");
 		return 20;
 	}
-	if (!sdname)
-		sdname = "hw:0,0";
+	if (!kparam->sdname)
+		kparam->sdname = "hw:0,0";
 
 	msgfile = argv[optind];
 	if (!msgfile && (action & (SIG_VERIFY|SIGN_FILE))) {
@@ -265,40 +281,40 @@ int main(int argc, char *argv[])
 	fnamlen = 0;
 	if (msgfile)
 		fnamlen = strlen(msgfile);
-	buffer = malloc(sizeof(struct ecc_key)+fnamlen+5);
-	if (!buffer) {
-		fprintf(stderr, "Out of Memory!\n");
-		return 10000;
+	buffer = malloc(fnamlen+512);
+	if (!check_pointer(buffer, LOG_CRIT, nomem)) {
+		free(kparam);
+		return NOMEM;
 	}
 	if (optind+1 < argc)
 		sigfile = argv[optind+1];
 	else {
-		sigfile = buffer + sizeof(struct ecc_key);
+		sigfile = buffer;
 		if (fnamlen > 0) {
 			strcpy(sigfile, msgfile);
 			strcat(sigfile, ".sig");
-		}
+			exbuf = buffer + fnamlen + 8;
+		} else
+			exbuf = buffer;
 	}
 
-	mkey = buffer;
 	ecc_init();
 
-	key_process(mkey, keyfile, action, keystr, sdname);
+	key_process(kparam, action);
 
 	if (action & SIGN_FILE)
-		sign_file(msgfile, mkey, sigfile, sdname);
+		sign_file(kparam, msgfile, sigfile);
 
 	if (action & SIG_VERIFY)
-		if (!verify_file(msgfile, mkey, sigfile))
+		if (!verify_file(kparam, msgfile, sigfile))
 			fprintf(stderr, "Signuature verification failed!\n");
 
 	if (action & EXPORT_KEY) {
-		exbuf = malloc(256);
-		ecc_key_export(exbuf, 256, mkey, 0);
+		ecc_key_export(exbuf, 256, &kparam->key, 0);
 		printf("Pub: %s\n", exbuf);
-		free(exbuf);
 	}
 
 	free(buffer);
+	free(kparam);
 	return retv;
 }
