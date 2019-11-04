@@ -51,25 +51,27 @@ static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 {
 	unsigned int w[ECCKEY_INT_LEN], cw;
 	size_t rlen;
-	mpz_t fct, tmpx;
+	mpz_t factor, sum, tmpnum;
 	int i, j;
 
-	mpz_init2(fct, 2*BITLEN);
-	mpz_init2(tmpx, 2*BITLEN);
-	mpz_set_ui(tmpx, 1);
-	mpz_set(fct, a);
+	mpz_init2(factor, 2*BITLEN);
+	mpz_init2(sum, 2*BITLEN);
+	mpz_init2(tmpnum, 2*BITLEN);
+	mpz_set_ui(sum, 1);
+	mpz_set(factor, a);
 	mpz_export(w, &rlen, 1, 4, 0, 0, e);
 	for (i = rlen-1; i >= 0; i--) {
 		cw = w[i];
 		for (j = 0; j < 32; j++) {
 			if ((cw & 1) == 1)
-				mpz_mul_mod(tmpx, tmpx, fct);
+				mpz_mul_mod(sum, sum, factor);
 			cw >>= 1;
-			mpz_mul_mod(fct, fct, fct);
+			mpz_mul_mod(tmpnum, factor, factor);
+			mpz_set(factor, tmpnum);
 		}
 	}
-	mpz_set(x, tmpx);
-	mpz_clears(tmpx, fct);
+	mpz_set(x, sum);
+	mpz_clears(sum, factor, tmpnum, NULL);
 }
 
 static inline void a_sroot(mpz_t x, const mpz_t a)
@@ -392,8 +394,8 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 	mpz_t x;
 
 	alsa = alsa_init(sdname, secs);
-	if (!alsa)
-		return 10000;
+	if (!check_pointer(alsa, LOG_CRIT, nomem))
+		return NOMEM;
 	mpz_init2(x, BITLEN);
 
 	do {
@@ -701,4 +703,19 @@ void ecc_prn_table(void)
 		printf("		}\n");
 		printf("	},\n");
 	}
+}
+
+int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
+{
+	int len;
+	struct ripemd160 *ripe;
+
+	ripe = ripemd160_init();
+	if (!check_pointer(ripe, LOG_CRIT, nomem))
+		return NOMEM;
+	ripemd160_dgst(ripe, (CBYTE *)ecckey->px, ECCKEY_INT_LEN*8);
+
+	len = bignum2str_b64(str, buflen, ripe->H, RIPEMD_LEN/4);
+	ripemd160_exit(ripe);
+	return len + 1 > buflen? 2:0;
 }

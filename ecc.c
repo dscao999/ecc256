@@ -21,6 +21,7 @@ static inline int malloc_len(int len)
 #define IMPORT_KEY	0x40
 #define EXPORT_KEY	0x80
 #define EXPORT_PRIV	0x10
+#define HASH_PUBKEY	0x20
 
 struct keyparam {
 	struct ecc_key key;
@@ -221,7 +222,7 @@ int main(int argc, char *argv[])
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":a:k:svge::i:p:");
+		opt = getopt(argc, argv, ":a:hk:svge::i:p:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -231,6 +232,9 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			fprintf(stderr, "Unknown option: %c\n", optopt);
+			break;
+		case 'h':
+			action |= HASH_PUBKEY;
 			break;
 		case 'p':
 			kparam->pass= optarg;
@@ -317,6 +321,10 @@ int main(int argc, char *argv[])
 			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPRIV);
 		else
 			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPUB);
+		printf("%s\n", exbuf);
+	}
+	if (action & HASH_PUBKEY) {
+		ecc_key_hash(exbuf, 256, &kparam->key);
 		printf("%s\n", exbuf);
 	}
 
