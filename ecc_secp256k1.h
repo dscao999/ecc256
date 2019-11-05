@@ -24,6 +24,14 @@ struct ecc_sig {
 void ecc_init(void);
 void ecc_exit(void);
 
+static inline int ecc_pubkey_only(const struct ecc_key *ekey)
+{
+	int i;
+	for (i = 0; i < ECCKEY_INT_LEN; i++)
+		if (ekey->pr[i])
+			return 0;
+	return 1;
+}
 int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname);
 int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len);
 int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len);

@@ -31,34 +31,53 @@ struct keyparam {
 	const char *keystr;
 };
 
+static int key_save2file(const struct keyparam *param)
+{
+	FILE *ko;
+	int retv = 0, plen;
+
+	if (!param->keyfile) {
+		logmsg(LOG_ERR, "Cannot save key to file, no file specified.");
+		return 3;
+	}
+	ko = fopen(param->keyfile, "wb");
+	if (!check_pointer(ko, LOG_ERR, "Cannot open file %s for writing.\n",
+				param->keyfile))
+		return 4;
+	if (param->pass)
+		plen = strlen(param->pass);
+	else
+		plen = 0;
+	retv = ecc_writkey(&param->key, ko, param->pass, plen);
+	fclose(ko);
+	return retv;
+}
+
 static int key_process(struct keyparam *param, int action)
 {
 	FILE *ko;
-	int plen = 0;
-	int retv = 0;
+	int plen = 0, retv = 0;
 
-	if ((action & GEN_KEY) || (action & IMPORT_KEY))
-		ko = fopen(param->keyfile, "wb");
-	else
-		ko = fopen(param->keyfile, "rb");
-	if (!ko) {
-		fprintf(stderr, "Cannot open key file %s for read/write!\n",
-				param->keyfile);
-		return 4;
-	}
 	if (param->pass)
 		plen = strlen(param->pass);
 	if (action & GEN_KEY) {
 		ecc_genkey(&param->key, 5, param->sdname);
-		ecc_writkey(&param->key, ko, param->pass, plen);
+		key_save2file(param);
 	} else if (action & IMPORT_KEY) {
-		ecc_key_import(&param->key, param->keystr);
-		ecc_writkey(&param->key, ko, param->pass, plen);
-	} else {
-		retv = ecc_readkey(&param->key, ko, param->pass, plen);
-	}
-
-	fclose(ko);
+		retv = ecc_key_import(&param->key, param->keystr);
+		if (retv)
+			logmsg(LOG_ERR, "Invalid public key!\n");
+		else if (!ecc_pubkey_only(&param->key))
+			key_save2file(param);
+	} else if (param->keyfile) {
+		ko = fopen(param->keyfile, "rb");
+		if (check_pointer(ko, LOG_ERR, "Cannot open key file %s.",
+					param->keyfile)) {
+			retv = ecc_readkey(&param->key, ko, param->pass, plen);
+			fclose(ko);
+		}
+	} else
+		logmsg(LOG_ERR, "A key file must be specified.\n");
 	return retv;
 }
 
@@ -267,10 +286,6 @@ int main(int argc, char *argv[])
 			assert(0);
 		}
 	} while (fin == 0);
-	if (!kparam->keyfile) {
-		fprintf(stderr, "A key file must be supplied!\n");
-		return 20;
-	}
 	if (!kparam->sdname)
 		kparam->sdname = "hw:0,0";
 
@@ -309,12 +324,16 @@ int main(int argc, char *argv[])
 	if (key_process(kparam, action))
 		return 1;
 
-	if (action & SIGN_FILE)
-		sign_file(kparam, msgfile, sigfile);
+	if (action & SIGN_FILE) {
+		if (!ecc_pubkey_only(&kparam->key))
+			sign_file(kparam, msgfile, sigfile);
+		else
+			logmsg(LOG_ERR, "Cannot sign without private key.\n");
+	}
 
 	if (action & SIG_VERIFY)
 		if (!verify_file(kparam, msgfile, sigfile))
-			fprintf(stderr, "Signuature verification failed!\n");
+			logmsg(LOG_ERR, "Signuature verification failed!\n");
 
 	if (action & EXPORT_KEY) {
 		if (action & EXPORT_PRIV)

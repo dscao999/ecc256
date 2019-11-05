@@ -374,7 +374,7 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 		a_sroot(x, tmp);
 		mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
 		if ((flag == 1 && (ecckey->py[ECCKEY_INT_LEN-1] & 1) == 0) ||
-				(flag == 0 && 
+				(flag == 2 && 
 				(ecckey->py[ECCKEY_INT_LEN-1] & 1) == 1)) {
 			mpz_sub(x, epm, x);
 			mpz_export(ecckey->py, &count_y, 1, 4, 0, 0, x);
@@ -628,6 +628,7 @@ int ecc_key_export(char *str, int buflen,
 int ecc_key_import(struct ecc_key *ecckey, const char *str)
 {
 	struct curve_point P;
+	int retv = 0;
 
 	memset(ecckey, 0, sizeof(struct ecc_key));
 	switch(*str) {
@@ -647,9 +648,10 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str)
 	point_init(&P);
 	mpz_import(P.x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->px);
 	mpz_import(P.y, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->py);
-	is_on_curve(&P);
+	if (!is_on_curve(&P))
+		retv = 1;
 	point_clear(&P);
-	return 0;
+	return retv;
 }
 
 static struct curve_point n2P[256];
