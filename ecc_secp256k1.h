@@ -21,6 +21,9 @@ struct ecc_sig {
 	unsigned int sig_s[ECCKEY_INT_LEN];
 };
 
+int ecc_sig2str(char *buf, int buflen, const struct ecc_sig *sig);
+int ecc_str2sig(struct ecc_sig *sig, const char *buf);
+
 void ecc_init(void);
 void ecc_exit(void);
 

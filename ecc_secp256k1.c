@@ -721,3 +721,44 @@ int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 	ripemd160_exit(ripe);
 	return len + 1 > buflen? 2:0;
 }
+
+int ecc_sig2str(char *buf, int buflen, const struct ecc_sig *sig)
+{
+	int s_len, r_len;
+
+	s_len = 0;
+	r_len = bignum2str_b64(buf, buflen, sig->sig_r, ECCKEY_INT_LEN);
+	if (r_len < buflen) {
+		buf[r_len] = ',';
+		s_len = bignum2str_b64(buf+r_len+1, buflen - r_len -1,
+				sig->sig_s, ECCKEY_INT_LEN);
+	}
+	if (s_len + r_len + 1 < buflen)
+		buf[s_len+r_len+1] = 0;
+	else
+		buf[buflen-1] = 0;
+	return s_len + r_len + 1;
+}
+
+int ecc_str2sig(struct ecc_sig *sig, const char *str)
+{
+	const char *comma, *s_str;
+	char *r_str;
+	int r_len, ovf = 0;
+
+	comma = strchr(str, ',');
+	if (!comma)
+		return 1;
+	r_len = comma - str;
+	r_str = malloc(r_len+1);
+	memcpy(r_str, str, r_len);
+	r_str[r_len] = 0;
+	ovf = str2bignum_b64(sig->sig_r, ECCKEY_INT_LEN, r_str);
+	free(r_str);
+	if (ovf)
+		return ovf;
+	s_str = comma + 1;
+	ovf = str2bignum_b64(sig->sig_s, ECCKEY_INT_LEN, s_str);
+
+	return ovf;
+}

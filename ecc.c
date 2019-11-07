@@ -9,6 +9,7 @@
 #include "ecc_secp256k1.h"
 #include "dscrc.h"
 #include "loglog.h"
+#include "base64.h"
 
 static inline int malloc_len(int len)
 {
@@ -29,6 +30,7 @@ struct keyparam {
 	const char *sdname;
 	const char *pass;
 	const char *keystr;
+	int nosigfile;
 };
 
 static int key_save2file(const struct keyparam *param)
@@ -82,7 +84,7 @@ static int key_process(struct keyparam *param, int action)
 }
 
 static int sign_file(const struct keyparam *param,
-		const char *msgfile, const char *sigfile)
+		const char *msgfile, char *sigfile)
 {
 	FILE *mi;
 	void *area;
@@ -90,7 +92,7 @@ static int sign_file(const struct keyparam *param,
 	struct stat mstat;
 	struct ecc_sig *sig;
 	unsigned int crc;
-	int sysret, retv, len;
+	int sysret, retv, len, rlen, slen;
 
 	retv = 0;
 	sysret = stat(msgfile, &mstat);
@@ -123,18 +125,27 @@ static int sign_file(const struct keyparam *param,
 	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size,
 			param->sdname);
 
-	mi = fopen(sigfile, "wb");
-	if (!mi) {
-		logmsg(LOG_ERR, "Cannot open file %s for writing.\n", sigfile);
-		retv = errno;
-		goto exit_20;
+	if (param->nosigfile == 0) {
+		mi = fopen(sigfile, "wb");
+		if (!mi) {
+			logmsg(LOG_ERR, "Cannot open file %s for writing.\n",
+					sigfile);
+			retv = errno;
+			goto exit_20;
+		}
+		sysret = fwrite(sig, sizeof(struct ecc_sig), 1, mi);
+		if (sysret != 1)
+			logmsg(LOG_ERR, "Write error %s: %s\n", sigfile,
+					strerror(errno));
+		crc = crc32((unsigned char *)sig, sizeof(struct ecc_sig));
+		sysret = fwrite(&crc, sizeof(crc), 1, mi);
+	} else {
+		rlen = bignum2str_b64(sigfile, 70, sig->sig_r, ECCKEY_INT_LEN);
+		sigfile[rlen] = ',';
+		slen = bignum2str_b64(sigfile+rlen+1, 69,
+				sig->sig_s, ECCKEY_INT_LEN);
+		assert(rlen+slen+1 < 140);
 	}
-	sysret = fwrite(sig, sizeof(struct ecc_sig), 1, mi);
-	if (sysret != 1)
-		logmsg(LOG_ERR, "Write error %s: %s\n", sigfile,
-				strerror(errno));
-	crc = crc32((unsigned char *)sig, sizeof(struct ecc_sig));
-	sysret = fwrite(&crc, sizeof(crc), 1, mi);
 
 exit_20:
 	if (mi)
@@ -184,30 +195,40 @@ static int verify_file(const struct keyparam *param,
 	fclose(mi);
 	mi = NULL;
 
-	sysret = stat(sigfile, &fst);
-	if (sysret == -1) {
-		logmsg(LOG_ERR, "File %s error: %s\n", sigfile,
-			strerror(errno));
-		retv = errno;
-		goto exit_20;
+	if (param->nosigfile == 0) {
+		sysret = stat(sigfile, &fst);
+		if (sysret == -1) {
+			logmsg(LOG_ERR, "File %s error: %s\n", sigfile,
+					strerror(errno));
+			retv = errno;
+			goto exit_20;
+		}
+		if (fst.st_size != 68) {
+			fprintf(stderr, "Invalid Signature %s\n", sigfile);
+			goto exit_20;
+		}
+		mi = fopen(sigfile, "rb");
+		if (!mi) {
+			logmsg(LOG_ERR, "Cannot open file %s for reading.\n",
+					sigfile);
+			retv = errno;
+			goto exit_20;
+		}
+		fread(sig, sizeof(struct ecc_sig), 1, mi);
+		fread(&crc, sizeof(crc), 1, mi);
+		if (!crc32_check((unsigned char *)sig, sizeof(struct ecc_sig),
+					crc)) {
+			logmsg(LOG_ERR, "Corrupted signature!\n");
+			goto exit_20;
+		}
+		retv = ecc_verify(sig, &param->key, mesg, len);
+	} else {
+		if (ecc_str2sig(sig, sigfile)) {
+			logmsg(LOG_ERR, "Overflow, not a valid signiture.\n");
+			goto exit_20;
+		}
+		retv = ecc_verify(sig, &param->key, mesg, len);
 	}
-	if (fst.st_size != 68) {
-		fprintf(stderr, "Invalid Signature %s\n", sigfile);
-		goto exit_20;
-	}
-	mi = fopen(sigfile, "rb");
-	if (!mi) {
-		logmsg(LOG_ERR, "Cannot open file %s for reading.\n", sigfile);
-		retv = errno;
-		goto exit_20;
-	}
-	fread(sig, sizeof(struct ecc_sig), 1, mi);
-	fread(&crc, sizeof(crc), 1, mi);
-	if (!crc32_check((unsigned char *)sig, sizeof(struct ecc_sig), crc)) {
-		logmsg(LOG_ERR, "Corrupted signature!\n");
-		goto exit_20;
-	}
-	retv = ecc_verify(sig, &param->key, mesg, len);
 
 exit_20:
 	if (area)
@@ -235,13 +256,14 @@ int main(int argc, char *argv[])
 	kparam->keyfile = NULL;
 	kparam->keystr = NULL;
 	kparam->sdname = NULL;
+	kparam->nosigfile = 0;
 	sigfile = NULL;
 	retv = 0;
 	opterr = 0;
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":a:hk:svge::i:p:");
+		opt = getopt(argc, argv, ":a:hk:s::v::ge::i:p:");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -275,9 +297,13 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			action |= SIGN_FILE;
+			if (optarg)
+				kparam->nosigfile = 1;
 			break;
 		case 'v':
 			action |= SIG_VERIFY;
+			if (optarg)
+				kparam->nosigfile = 1;
 			break;
 		case 'g':
 			action |= GEN_KEY;
@@ -305,7 +331,7 @@ int main(int argc, char *argv[])
 	}
 	if (optind+1 < argc)
 		sigfile = argv[optind+1];
-	else {
+	else if (kparam->nosigfile == 0) {
 		sigfile = buffer;
 		if (fnamlen > 0) {
 			fbname = strrchr(msgfile, '/');
@@ -314,10 +340,15 @@ int main(int argc, char *argv[])
 			else
 				strcpy(sigfile, msgfile);
 			strcat(sigfile, ".sig");
-			exbuf = buffer + fnamlen + 8;
+			exbuf = buffer + 140 + fnamlen + 8;
 		} else
-			exbuf = buffer;
+			exbuf = buffer + 140;
+	} else if (action & SIG_VERIFY) {
+		logmsg(LOG_ERR, "A signiture must be specified.\n");
+		return 4;
 	}
+	if (!sigfile)
+		sigfile = buffer;
 
 	ecc_init();
 
@@ -346,6 +377,8 @@ int main(int argc, char *argv[])
 		ecc_key_hash(exbuf, 256, &kparam->key);
 		printf("%s\n", exbuf);
 	}
+	if (kparam->nosigfile && (action & SIGN_FILE))
+		printf("%s\n", sigfile);
 
 	free(buffer);
 	free(kparam);
