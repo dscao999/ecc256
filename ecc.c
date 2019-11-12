@@ -244,6 +244,7 @@ int main(int argc, char *argv[])
 	struct keyparam *kparam;
 	void *buffer;
 	int fin, opt, action, retv, fnamlen;
+	int flag;
 	const char *msgfile, *fbname;
 	char *sigfile, *exbuf;
 	extern int optind, opterr, optopt;
@@ -258,6 +259,7 @@ int main(int argc, char *argv[])
 	kparam->sdname = NULL;
 	kparam->nosigfile = 0;
 	sigfile = NULL;
+	msgfile = NULL;
 	retv = 0;
 	opterr = 0;
 	fin = 0;
@@ -315,7 +317,8 @@ int main(int argc, char *argv[])
 	if (!kparam->sdname)
 		kparam->sdname = "hw:0,0";
 
-	msgfile = argv[optind];
+	if (optind < argc)
+		msgfile = argv[optind];
 	if (!msgfile && (action & (SIG_VERIFY|SIGN_FILE))) {
 		fprintf(stderr, "Usage: %s -k keyfile [-g] [-s|-v]"
 				" file [file.sig]\n", argv[0]);
@@ -324,31 +327,27 @@ int main(int argc, char *argv[])
 	fnamlen = 0;
 	if (msgfile)
 		fnamlen = strlen(msgfile);
-	buffer = malloc(fnamlen+512);
+
+	buffer = malloc(fnamlen+600);
 	if (!check_pointer(buffer, LOG_CRIT, nomem)) {
 		free(kparam);
 		return NOMEM;
 	}
-	if (optind+1 < argc)
-		sigfile = argv[optind+1];
-	else if (kparam->nosigfile == 0) {
+	if (action & (SIG_VERIFY|SIGN_FILE)) {
 		sigfile = buffer;
-		if (fnamlen > 0) {
+		*sigfile = 0;
+		if (optind + 1 < argc)
+			sigfile = argv[optind+1];
+		else if (kparam->nosigfile == 0) {
 			fbname = strrchr(msgfile, '/');
 			if (fbname)
-				strcpy(sigfile, fbname);
+				strcpy(sigfile, fbname+1);
 			else
 				strcpy(sigfile, msgfile);
 			strcat(sigfile, ".sig");
-			exbuf = buffer + 140 + fnamlen + 8;
-		} else
-			exbuf = buffer + 140;
-	} else if (action & SIG_VERIFY) {
-		logmsg(LOG_ERR, "A signiture must be specified.\n");
-		return 4;
+		}
 	}
-	if (!sigfile)
-		sigfile = buffer;
+	exbuf = buffer + 300;
 
 	ecc_init();
 
@@ -367,10 +366,10 @@ int main(int argc, char *argv[])
 			logmsg(LOG_ERR, "Signuature verification failed!\n");
 
 	if (action & EXPORT_KEY) {
+		flag = ECCKEY_EXPUB;
 		if (action & EXPORT_PRIV)
-			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPRIV);
-		else
-			ecc_key_export(exbuf, 256, &kparam->key, ECCKEY_EXPUB);
+			flag = ECCKEY_EXPRIV;
+		ecc_key_export(exbuf, 256, &kparam->key, flag);
 		printf("%s\n", exbuf);
 	}
 	if (action & HASH_PUBKEY) {
