@@ -711,15 +711,18 @@ int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 {
 	int len;
 	struct ripemd160 *ripe;
+	char buf[64];
 
 	ripe = ripemd160_init();
 	if (!check_pointer(ripe, LOG_CRIT, nomem))
 		return NOMEM;
-	ripemd160_dgst(ripe, (CBYTE *)ecckey->px, ECCKEY_INT_LEN*8);
+	len = ecc_key_export(buf, 64, ecckey, ECCKEY_EXPUB);
+	assert(len < 64);
+	ripemd160_dgst(ripe, (CBYTE *)buf, len);
 
 	len = bignum2str_b64(str, buflen, ripe->H, RIPEMD_LEN/4);
 	ripemd160_exit(ripe);
-	return len + 1 > buflen? 2:0;
+	return len;
 }
 
 int ecc_sig2str(char *buf, int buflen, const struct ecc_sig *sig)
