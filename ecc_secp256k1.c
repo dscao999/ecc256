@@ -9,12 +9,13 @@
 #include <assert.h>
 #include <errno.h>
 #include "ecc_secp256k1.h"
-#include "alsa_random.h"
+#include "alsarec.h"
 #include "base64.h"
 #include "dscrc.h"
 #include "dsaes.h"
 #include "ripemd160.h"
 #include "loglog.h"
+#include "sha256.h"
 
 #define BITLEN	256
 
@@ -399,7 +400,8 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 	mpz_init2(x, BITLEN);
 
 	do {
-		retv = alsa_random(alsa, ecckey->pr);
+		retv = alsa_record(alsa);
+		alsa_random(ecckey->pr, alsa->buf, alsa->buflen);
 		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0 || mpz_cmp_ui(x, 0) == 0);
 
@@ -526,7 +528,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	do {
 		do {
-			alsa_random(alsa, kx);
+			alsa_record(alsa);
+			alsa_random(kx, alsa->buf, alsa->buflen);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 

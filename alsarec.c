@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include "alsa_random.h"
+#include "alsarec.h"
 #include "loglog.h"
+#include "sha256.h"
 
 #define SAMPLE_LEN	176400   /* one second of background noise, 44.1k * 2 channel * 16 bit */
 
@@ -20,9 +21,6 @@ struct alsa_param * alsa_init(const char *sdname, int sec)
 	alsa = malloc(sizeof(struct alsa_param));
 	if (!alsa)
 		return NULL;
-	alsa->sha = sha256_init();
-	if (alsa->sha == NULL)
-		goto err_5;
 
 	alsa->pcm_name = strdup(sdname);
 	if (!alsa->pcm_name)
@@ -108,13 +106,11 @@ err_30:
 err_20:
 	free(alsa->pcm_name);
 err_10:
-	sha256_exit(alsa->sha);
-err_5:
 	free(alsa);
 	return NULL;
 }
 
-int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
+int alsa_record(struct alsa_param *alsa)
 {
 	int snderr, retv;
 
@@ -138,8 +134,14 @@ int alsa_random(struct alsa_param *alsa, unsigned int dgst[8])
 	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
 	if (snderr == 0)
 		alsa->paused = 1;
-	sha256(alsa->sha, (unsigned char *)alsa->buf, alsa->buflen);
-	memcpy(dgst, alsa->sha->H, 32);
-	sha256_reset(alsa->sha);
 	return retv;
+}
+
+static struct sha256 sha;
+
+void alsa_random(unsigned int dgst[8], const unsigned char *buf, int len)
+{
+	sha256_reset(&sha);
+	sha256(&sha, (unsigned char *)buf, len);
+	memcpy(dgst, sha.H, 32);
 }

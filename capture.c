@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <assert.h>
-#include "alsa_random.h"
+#include "alsarec.h"
 
 int main(int argc, char *argv[])
 {
@@ -71,10 +71,11 @@ int main(int argc, char *argv[])
 
 	count = 0;
 	do {
-		if (alsa_random(alsa, dgst) != 0) {
+		if (alsa_record(alsa) != 0) {
 			fprintf(stderr, "Failed to get an random number!\n");
 			break;
 		}
+		alsa_random(dgst, alsa->buf, alsa->buflen);
 		byte = buf;
 		for (plen = 0; plen < 8; plen++) {
 			printf("%08X", dgst[plen]);

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
-#include "alsa_random.h"
+#include "alsarec.h"
 #include "base64.h"
 
 int main(int argc, char *argv[])
@@ -28,10 +28,11 @@ int main(int argc, char *argv[])
 
 	count = 0;
 	do {
-		if (alsa_random(alsa, dgst) != 0) {
+		if (alsa_record(alsa) != 0) {
 			fprintf(stderr, "Failed to get an random number!\n");
 			break;
 		}
+		alsa_random(dgst, alsa->buf, alsa->buflen);
 		bignum2str_b64(strbuf, 64, dgst, 8);
 		printf("%s\n", strbuf);
 		str2bignum_b64(bkdgst, 8, strbuf);
