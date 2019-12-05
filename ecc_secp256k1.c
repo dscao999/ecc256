@@ -401,7 +401,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 	do {
 		retv = alsa_random(alsa, ecckey->pr);
 		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
-	} while (mpz_cmp(x, epn) >= 0);
+	} while (mpz_cmp(x, epn) >= 0 || mpz_cmp_ui(x, 0) == 0);
 
 	compute_public(ecckey, 0);
 
@@ -518,6 +518,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	point_init(&K);
 	mpz_init2(s, 2*BITLEN);
+	mpz_set_ui(s, 1);
 	mpz_init2(k, BITLEN);
 	mpz_init2(k_inv, BITLEN);
 	mpz_init2(r, BITLEN);
