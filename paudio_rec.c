@@ -66,6 +66,8 @@ int main(int argc, char *argv[])
 			adusb = i;
 			uop.devusb = devInfo;
 		}
+		if (devInfo->maxInputChannels > 0)
+			printf("Index: %d, %s\n", i, devInfo->name);
 	}
 
 	if (adusb == 0 || uop.devusb->maxInputChannels < 1) {

@@ -5,135 +5,208 @@
 
 #define SAMPLE_LEN	176400   /* one second of background noise, 44.1k * 2 channel * 16 bit */
 
-struct alsa_param * alsa_init(const char *sdname, int sec)
+static char sdname[32];
+static snd_pcm_hw_params_t *hwparams;
+
+int alsa_init(void)
 {
-	int snderr, len;
-	unsigned int srate;
-	struct alsa_param *alsa;
+	snd_ctl_t *hdl;
+	snd_pcm_t *pcmhdl;
+	int snderr, card, sddev, stream, retv = 0;
+	unsigned int noch, srate;
+	snd_pcm_info_t *pcminfo = NULL;
+	snd_ctl_card_info_t *info = NULL;
 
+	snd_ctl_card_info_malloc(&info);
+	snd_pcm_info_malloc(&pcminfo);
+	stream = SND_PCM_STREAM_CAPTURE;
+	card = -1;
+	while (snd_card_next(&card) >= 0 && card >= 0) {
+		sprintf(sdname, "hw:%d", card);
+		snderr = snd_ctl_open(&hdl, sdname, 0);
+		if (snderr < 0) {
+			logmsg(LOG_ERR, "control open (%d): %s\n", card,
+					snd_strerror(snderr));
+			continue;
+		}
+		if ((snderr = snd_ctl_card_info(hdl, info)) < 0) {
+			logmsg(LOG_ERR, "control hardware info (%i): %s", card,
+					snd_strerror(snderr));
+			snd_ctl_close(hdl);
+			continue;
+		}
+		sddev = -1;
+		sdname[0] = 0;
+		while (snd_ctl_pcm_next_device(hdl, &sddev) >= 0 && sddev >= 0) {
+			snd_pcm_info_set_device(pcminfo, sddev);
+			snd_pcm_info_set_subdevice(pcminfo, 0);
+			snd_pcm_info_set_stream(pcminfo, stream);
+			snderr = snd_ctl_pcm_info(hdl, pcminfo);
+			if (snderr >= 0) {
+				sprintf(sdname, "hw:%d,%d", card, sddev);
+				break;
+			}
+			if (snderr != -ENOENT)
+				logmsg(LOG_ERR, "control digital audio"
+					       " info (%i): %s", card,
+					       snd_strerror(snderr));
+		}
+		snd_ctl_close(hdl);
+		if (sdname[0] != 0)
+			break;
+	}
+	snd_pcm_info_free(pcminfo);
+	snd_ctl_card_info_free(info);
+	snd_config_update_free_global();
+	if (sdname[0] == 0) {
+		logmsg(LOG_ERR, "No Sound Card!\n");
+		return -1;
+	}
 
-	if (sec < 0)
-		return NULL;
-	else if (sec == 0)
-		len = SAMPLE_LEN;
-	else
-		len = sec * SAMPLE_LEN;
-	alsa = malloc(sizeof(struct alsa_param));
-	if (!alsa)
-		return NULL;
-
-	alsa->pcm_name = strdup(sdname);
-	if (!alsa->pcm_name)
-		goto err_10;
-	snderr = snd_pcm_hw_params_malloc(&alsa->hwparams);
-	if (snderr < 0)
-		goto err_20;
-	alsa->stmtyp = SND_PCM_STREAM_CAPTURE;
-	snderr = snd_pcm_open(&alsa->pcm_handle, alsa->pcm_name, alsa->stmtyp, 0);
+	snderr = snd_pcm_hw_params_malloc(&hwparams);
+	if (snderr < 0) {
+		logmsg(LOG_CRIT, nomem);
+		return -100;
+	}
+	snderr = snd_pcm_open(&pcmhdl, sdname, SND_PCM_STREAM_CAPTURE, 0);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Error opening PCM device %s->%s\n",
-				alsa->pcm_name, snd_strerror(snderr));
+				sdname, snd_strerror(snderr));
 		goto err_30;
 	}
-	snderr = snd_pcm_hw_params_any(alsa->pcm_handle, alsa->hwparams);
+	snderr = snd_pcm_hw_params_any(pcmhdl, hwparams);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Can not configure this PCM device: %s\n", \
 				snd_strerror(snderr));
 		goto err_40;
 	}
-	snderr = snd_pcm_hw_params_set_access(alsa->pcm_handle, alsa->hwparams,
-				SND_PCM_ACCESS_RW_INTERLEAVED);
+	snderr = snd_pcm_hw_params_set_access(pcmhdl, hwparams,
+			SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Cannot set access type: %s\n",
 				snd_strerror(snderr));
-		goto err_40;
+		goto err_50;
 	}
-	snderr = snd_pcm_hw_params_set_format(alsa->pcm_handle, alsa->hwparams,
-				SND_PCM_FORMAT_S16_LE);
+	snderr = snd_pcm_hw_params_set_format(pcmhdl, hwparams,
+			SND_PCM_FORMAT_S16_LE);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Cannot set sample format: %s\n",
 				snd_strerror(snderr));
-		goto err_40;
+		goto err_50;
 	}
-	srate = SAMPLE_HZ;
-	snderr = snd_pcm_hw_params_set_rate_near(alsa->pcm_handle, alsa->hwparams,
-				&srate, 0);
+	snderr = snd_pcm_hw_params(pcmhdl, hwparams);
+	if (snderr < 0) {
+		logmsg(LOG_ERR, "Cannot set parameters: %s\n",
+				snd_strerror(snderr));
+		goto err_50;
+	}
+	snderr = snd_pcm_hw_params_get_rate(hwparams, &srate, NULL);
+	if (snderr < 0) {
+		logmsg(LOG_ERR, "Cannot set sample rate: %s\n",
+				snd_strerror(snderr));
+		goto err_50;
+	}
+	snderr = snd_pcm_hw_params_get_channels(hwparams, &noch);
+	if (snderr < 0) {
+		logmsg(LOG_ERR, "Cannot get channel number: %s\n",
+				snd_strerror(snderr));
+		goto err_50;
+	}
+	snd_pcm_close(pcmhdl);
+
+	return retv;
+
+err_50:
+	snd_pcm_hw_params_free(hwparams);
+	hwparams = NULL;
+err_40:
+	snd_pcm_close(pcmhdl);
+err_30:
+	sdname[0] = 0;
+	return retv;
+}
+
+void alsa_exit(void)
+{
+	snd_pcm_hw_params_free(hwparams);
+}
+
+int alsa_reclen(int secs)
+{
+	unsigned int noch, srate;
+	int snderr, len = -1;
+
+	if (hwparams == NULL) {
+		logmsg(LOG_ERR, "Random Source not Initialized!\n");
+		return len;
+	}
+
+	snderr = snd_pcm_hw_params_get_rate(hwparams, &srate, NULL);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Cannot set sample rate: %s\n",
 				snd_strerror(snderr));
 		goto err_40;
 	}
-	snderr = snd_pcm_hw_params_set_channels(alsa->pcm_handle, alsa->hwparams,
-				2);
-	if (snderr < 0)
-		snderr = snd_pcm_hw_params_set_channels(alsa->pcm_handle,
-				alsa->hwparams, 1);
+	snderr = snd_pcm_hw_params_get_channels(hwparams, &noch);
 	if (snderr < 0) {
-		logmsg(LOG_ERR, "Cannot set channel number: %s\n",
+		logmsg(LOG_ERR, "Cannot get channel number: %s\n",
 				snd_strerror(snderr));
 		goto err_40;
 	}
-	snderr = snd_pcm_hw_params(alsa->pcm_handle, alsa->hwparams);
+	len = sizeof(unsigned short) * noch * secs * srate;
+
+err_40:
+	return len;
+}
+
+int alsa_record(int sec, char *buf, int buflen)
+{
+	snd_pcm_t *pcmhdl;
+	int snderr, retv = 0, frame_len;
+	unsigned int noch;
+
+	if (sdname[0] == 0) {
+		logmsg(LOG_ERR, "No Random Source!]n");
+		return -1;
+	}
+	snderr = snd_pcm_open(&pcmhdl, sdname, SND_PCM_STREAM_CAPTURE, 0);
+	if (snderr < 0) {
+		logmsg(LOG_ERR, "Error opening PCM device %s->%s\n",
+				sdname, snd_strerror(snderr));
+		return -1;
+	}
+	snderr = snd_pcm_hw_params_get_channels(hwparams, &noch);
+	if (snderr < 0) {
+		logmsg(LOG_ERR, "Cannot get channel number: %s\n",
+				snd_strerror(snderr));
+		goto err_10;
+	}
+	snderr = snd_pcm_hw_params(pcmhdl, hwparams);
 	if (snderr < 0) {
 		logmsg(LOG_ERR, "Cannot set parameters: %s\n",
 				snd_strerror(snderr));
-		goto err_40;
+		retv = snderr;
+		goto err_10;
 	}
-
-	snderr = snd_pcm_prepare(alsa->pcm_handle);
+	snderr = snd_pcm_prepare (pcmhdl);
 	if (snderr < 0) {
-		logmsg(LOG_ERR, "Prepare failed: %s\n", snd_strerror(snderr));
-		goto err_40;
+		logmsg(LOG_ERR, "cannot prepare audio interface for use (%s)\n",
+				snd_strerror(snderr));
+		retv = snderr;
+		goto err_10;
 	}
-	alsa->buf = malloc(len);
-	if (!alsa->buf) {
-		fprintf(stderr, "Out of Memory!\n");
-		goto err_40;
-	}
-	alsa->buflen = len;
-	alsa->paused = 0;
-	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
-	if (snderr == 0)
-		alsa->paused = 1;
 
-	snd_pcm_hw_params_free(alsa->hwparams);
-	return alsa;
-
-err_40:
-	snd_pcm_close(alsa->pcm_handle);
-err_30:
-	snd_pcm_hw_params_free(alsa->hwparams);
-err_20:
-	free(alsa->pcm_name);
-err_10:
-	free(alsa);
-	return NULL;
-}
-
-int alsa_record(struct alsa_param *alsa)
-{
-	int snderr, retv;
-
-	if (alsa->paused) {
-		snderr = snd_pcm_pause(alsa->pcm_handle, 0);
-		if (snderr) {
-			logmsg(LOG_ERR, "Cannot Startup: %s\n",
-					snd_strerror(snderr));
-			return snderr;
-		}
-		alsa->paused = 0;
-	}
-	retv = 0;
-	snderr = snd_pcm_readi(alsa->pcm_handle, alsa->buf, alsa->buflen/4);
-	if (snderr != alsa->buflen/4) {
+	frame_len = sizeof(unsigned short) * noch;
+	snderr = snd_pcm_readi(pcmhdl, buf, buflen/frame_len);
+	if (snderr != buflen/frame_len) {
 		logmsg(LOG_WARNING, "Warning! Audio read failed: %s\n",
 			snd_strerror(snderr));
 		logmsg(LOG_WARNING, "A Bad Random Number might be returned.\n");
-		retv = snderr;
 	}
-	snderr = snd_pcm_pause(alsa->pcm_handle, 1);
-	if (snderr == 0)
-		alsa->paused = 1;
+	retv = snderr;
+
+err_10:
+	snd_pcm_close(pcmhdl);
 	return retv;
 }
 
