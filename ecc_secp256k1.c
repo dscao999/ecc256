@@ -390,25 +390,30 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 
 int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
 {
-	int retv;
-	struct alsa_param *alsa;
+	int retv, buflen;
 	mpz_t x;
+	char *abuf;
 
-	alsa = alsa_init(sdname, secs);
-	if (!check_pointer(alsa, LOG_CRIT, nomem))
-		return NOMEM;
 	mpz_init2(x, BITLEN);
 
+	buflen = alsa_reclen(secs);
+	if (buflen <= 0) {
+		logmsg(LOG_ERR, "Cannot make audio record.\n");
+		return -1;
+	}
+	abuf = malloc(buflen);
+	if (!check_pointer(abuf, LOG_CRIT, nomem))
+		exit(100);
 	do {
-		retv = alsa_record(alsa);
-		alsa_random(ecckey->pr, alsa->buf, alsa->buflen);
+		retv = alsa_record(secs, abuf, buflen);
+		alsa_random(ecckey->pr, (const unsigned char *)abuf, buflen);
 		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0 || mpz_cmp_ui(x, 0) == 0);
+	free(abuf);
 
 	compute_public(ecckey, 0);
 
 	mpz_clear(x);
-	alsa_exit(alsa);
 
 	return retv;
 }
@@ -503,10 +508,11 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_INT_LEN];
 	unsigned int kx[ECCKEY_INT_LEN];
-	struct alsa_param *alsa;
 	mpz_t k, r, s, dst, k_inv, prikey;
 	struct curve_point K;
 	size_t count_r, count_s;
+	int buflen;
+	char *abuf;
 
 	sha = sha256_init();
 	sha256(sha, mesg, len);
@@ -524,12 +530,19 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_init2(k, BITLEN);
 	mpz_init2(k_inv, BITLEN);
 	mpz_init2(r, BITLEN);
-	alsa = alsa_init(sdname, 0);
 
+	buflen = alsa_reclen(1);
+	if (buflen <= 0) {
+		logmsg(LOG_ERR, "Cannot make audio record.\n");
+		exit(1);
+	}
+	abuf = malloc(buflen);
+	if (!check_pointer(abuf, LOG_CRIT, nomem))
+		exit(100);
 	do {
 		do {
-			alsa_record(alsa);
-			alsa_random(kx, alsa->buf, alsa->buflen);
+			alsa_record(1, abuf, buflen);
+			alsa_random(kx, (const unsigned char *)abuf, buflen);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 
@@ -544,8 +557,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		mpz_mul(s, k_inv, s);
 		mpz_mod(s, s, epn);
 	} while (mpz_cmp_ui(s, 0) == 0);
-
-	alsa_exit(alsa);
+	free(abuf);
 
 	mpz_export(sig->sig_r, &count_r, 1, 4, 0, 0, r);
 	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 

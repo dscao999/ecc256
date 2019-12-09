@@ -10,6 +10,7 @@
 #include "dscrc.h"
 #include "loglog.h"
 #include "base64.h"
+#include "alsarec.h"
 
 static inline int malloc_len(int len)
 {
@@ -250,6 +251,7 @@ int main(int argc, char *argv[])
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
+	alsa_init();
 	kparam = malloc(sizeof(struct keyparam));
 	if (!check_pointer(kparam, LOG_CRIT, nomem))
 		return NOMEM;
@@ -381,5 +383,6 @@ int main(int argc, char *argv[])
 
 	free(buffer);
 	free(kparam);
+	alsa_exit();
 	return retv;
 }
