@@ -388,7 +388,7 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 	point_clear(&P);
 }
 
-int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname)
+int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
 	int retv, buflen;
 	mpz_t x;
@@ -503,7 +503,7 @@ exit_10:
 }
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
-		CBYTE *mesg, int len, const char *sdname)
+		CBYTE *mesg, int len)
 {
 	struct sha256 *sha;
 	unsigned int dgst[ECCKEY_INT_LEN];

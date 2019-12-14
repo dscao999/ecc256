@@ -64,7 +64,7 @@ static int key_process(struct keyparam *param, int action)
 	if (param->pass)
 		plen = strlen(param->pass);
 	if (action & GEN_KEY) {
-		ecc_genkey(&param->key, 5, param->sdname);
+		ecc_genkey(&param->key, 5);
 		key_save2file(param);
 	} else if (action & IMPORT_KEY) {
 		retv = ecc_key_import(&param->key, param->keystr);
@@ -123,8 +123,7 @@ static int sign_file(const struct keyparam *param,
 	fclose(mi);
 	mi = NULL;
 
-	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size,
-			param->sdname);
+	ecc_sign(sig, &param->key, (unsigned char *)mesg, mstat.st_size);
 
 	if (param->nosigfile == 0) {
 		mi = fopen(sigfile, "wb");

@@ -35,7 +35,7 @@ static inline int ecc_pubkey_only(const struct ecc_key *ekey)
 			return 0;
 	return 1;
 }
-int ecc_genkey(struct ecc_key *ecckey, int secs, const char *sdname);
+int ecc_genkey(struct ecc_key *ecckey, int secs);
 int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len);
 int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len);
 
@@ -44,7 +44,7 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str);
 int ecc_key_hash(char *str, int len, const struct ecc_key *ecckey);
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
-		const unsigned char *mesg, int len, const char *sdname);
+		const unsigned char *mesg, int len);
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
