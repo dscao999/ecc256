@@ -262,6 +262,12 @@ static void key_expan(unsigned char keys[176])
 	}
 }
 
+void aes_reset(struct aeskey *w, const unsigned char *pass)
+{
+	memcpy(w->w, pass, AES128_BLOCK_LEN);
+	key_expan(w->w);
+}
+
 struct aeskey * aes_init(const unsigned char *key)
 {
 	struct aeskey *w;
@@ -269,8 +275,7 @@ struct aeskey * aes_init(const unsigned char *key)
 	w = malloc(sizeof(struct aeskey));
 	if (!w)
 		return w;
-	memcpy(w->w, key, AES128_BLOCK_LEN);
-	key_expan(w->w);
+	aes_reset(w, key);
 	return w;
 }
 

@@ -8,6 +8,7 @@ struct aeskey {
 	unsigned char w[176];
 };
 
+void aes_reset(struct aeskey *w, const unsigned char *pass);
 struct aeskey * aes_init(const unsigned char *key);
 static inline void aes_exit(struct aeskey *w)
 {

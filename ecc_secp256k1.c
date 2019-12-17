@@ -421,8 +421,8 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
 {
 	void *buf;
-	struct ripemd160 *ripe;
-	struct aeskey *aes;
+	struct ripemd160 ripe;
+	struct aeskey aes;
 	int retv = 0, no, reclen;
 	unsigned int *crc, ucrc;
 
@@ -430,31 +430,20 @@ int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
 	buf = malloc(reclen*8);
 	if (!check_pointer(buf, LOG_CRIT, nomem))
 		return NOMEM;
-	ripe = ripemd160_init();
-	if (!check_pointer(ripe, LOG_CRIT, nomem)) {
-		retv = NOMEM;
-		goto exit_10;
-	}
-	ripemd160_dgst(ripe, (CBYTE *)ps, len);
-	aes = aes_init((CBYTE *)ripe->H);
-	ripemd160_exit(ripe);
-	if (!check_pointer(aes, LOG_CRIT, nomem)) {
-		retv = NOMEM;
-		goto exit_10;
-	}
+	ripemd160_reset(&ripe);
+	ripemd160_dgst(&ripe, (CBYTE *)ps, len);
+	aes_reset(&aes, (CBYTE *)ripe.H);
 	memcpy(buf, ecckey->pr, ECCKEY_INT_LEN*4);
 	crc = buf + (reclen - 1) * 4;
 	ucrc = crc32(buf, (reclen - 1)*4);
 	*crc = swap32(ucrc);
-	dsaes(aes, buf, buf+reclen*4, reclen*4);
-	aes_exit(aes);
+	dsaes(&aes, buf, buf+reclen*4, reclen*4);
 
 	no = fwrite(buf+reclen*4, 1, reclen*4, fo);
 	if (no != reclen*4) {
 		logmsg(LOG_WARNING, "Cannot save key to file: %s\n", strerror(errno));
 		retv = errno;
 	}
-exit_10:
 	free(buf);
 	return retv;
 }
@@ -462,8 +451,8 @@ exit_10:
 int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
 {
 	void *buf;
-	struct ripemd160 *ripe;
-	struct aeskey *aes;
+	struct ripemd160 ripe;
+	struct aeskey aes;
 	int retv = 0, no, reclen;
 
 	reclen = ECCKEY_INT_LEN+AES128_BLOCK_LEN/4;
@@ -477,26 +466,16 @@ int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
 		retv = errno;
 		goto exit_10;
 	}
-	ripe = ripemd160_init();
-	if (!check_pointer(ripe, LOG_CRIT, nomem)) {
-		retv = NOMEM;
-		goto exit_10;
-	}
-	ripemd160_dgst(ripe, (CBYTE *)ps, len);
-	aes = aes_init((CBYTE *)ripe->H);
-	ripemd160_exit(ripe);
-	if (!check_pointer(aes, LOG_CRIT, nomem)) {
-		retv = NOMEM;
-		goto exit_10;
-	}
-	un_dsaes(aes, buf, (BYTE *)ecckey->pr, reclen*4);
+	ripemd160_reset(&ripe);
+	ripemd160_dgst(&ripe, (CBYTE *)ps, len);
+	aes_reset(&aes, (CBYTE *)ripe.H);
+	un_dsaes(&aes, buf, (BYTE *)ecckey->pr, reclen*4);
 	if (crc32((CBYTE *)ecckey->pr, reclen*4)) {
 		logmsg(LOG_ERR, "Invalid passphrase.\n");
 		retv = 1;
 	} else
 		compute_public(ecckey, 0);
 
-	aes_exit(aes);
 exit_10:
 	free(buf);
 	return retv;
