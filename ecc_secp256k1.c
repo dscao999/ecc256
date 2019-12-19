@@ -616,7 +616,7 @@ int ecc_key_export(char *str, int buflen,
 	} else
 		return 1;
 	*str = fm;
-	len = bignum2str_b64(str+1, buflen-1, key, ECCKEY_INT_LEN);
+	len = bin2str_b64(str+1, buflen-1, (const unsigned char *)key, ECCKEY_INT_LEN*4);
 	return len + 1 > buflen? 2:0;
 }
 
@@ -628,15 +628,15 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str)
 	memset(ecckey, 0, sizeof(struct ecc_key));
 	switch(*str) {
 	case '0':
-		str2bignum_b64(ecckey->pr, ECCKEY_INT_LEN, str+1);
+		retv = str2bin_b64((unsigned char *)ecckey->pr, ECCKEY_INT_LEN*4, str+1);
 		compute_public(ecckey, 0);
 		break;
 	case '1':
-		str2bignum_b64(ecckey->px, ECCKEY_INT_LEN, str+1);
+		retv = str2bin_b64((unsigned char *)ecckey->px, ECCKEY_INT_LEN*4, str+1);
 		compute_public(ecckey, 1);
 		break;
 	case '2':
-		str2bignum_b64(ecckey->px, ECCKEY_INT_LEN, str+1);
+		retv = str2bin_b64((unsigned char *)ecckey->px, ECCKEY_INT_LEN*4, str+1);
 		compute_public(ecckey, 2);
 		break;
 	}
@@ -644,7 +644,7 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str)
 	mpz_import(P.x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->px);
 	mpz_import(P.y, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->py);
 	if (!is_on_curve(&P))
-		retv = 1;
+		retv = -65;
 	point_clear(&P);
 	return retv;
 }
@@ -715,7 +715,7 @@ int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 	assert(len < 64);
 	ripemd160_dgst(ripe, (CBYTE *)buf, len);
 
-	len = bignum2str_b64(str, buflen, ripe->H, RIPEMD_LEN/4);
+	len = bin2str_b64(str, buflen, (const unsigned char *)ripe->H, RIPEMD_LEN);
 	ripemd160_exit(ripe);
 	return len;
 }
@@ -725,11 +725,11 @@ int ecc_sig2str(char *buf, int buflen, const struct ecc_sig *sig)
 	int s_len, r_len;
 
 	s_len = 0;
-	r_len = bignum2str_b64(buf, buflen, sig->sig_r, ECCKEY_INT_LEN);
+	r_len = bin2str_b64(buf, buflen, (const unsigned char *)sig->sig_r, ECCKEY_INT_LEN*4);
 	if (r_len < buflen) {
 		buf[r_len] = ',';
-		s_len = bignum2str_b64(buf+r_len+1, buflen - r_len -1,
-				sig->sig_s, ECCKEY_INT_LEN);
+		s_len = bin2str_b64(buf+r_len+1, buflen - r_len -1,
+				(const unsigned char *)sig->sig_s, ECCKEY_INT_LEN*4);
 	}
 	if (s_len + r_len + 1 < buflen)
 		buf[s_len+r_len+1] = 0;
@@ -746,17 +746,17 @@ int ecc_str2sig(struct ecc_sig *sig, const char *str)
 
 	comma = strchr(str, ',');
 	if (!comma)
-		return 1;
+		return -1;
 	r_len = comma - str;
 	r_str = malloc(r_len+1);
 	memcpy(r_str, str, r_len);
 	r_str[r_len] = 0;
-	ovf = str2bignum_b64(sig->sig_r, ECCKEY_INT_LEN, r_str);
+	ovf = str2bin_b64((unsigned char *)sig->sig_r, ECCKEY_INT_LEN*4, r_str);
 	free(r_str);
-	if (ovf)
+	if (ovf < 0)
 		return ovf;
 	s_str = comma + 1;
-	ovf = str2bignum_b64(sig->sig_s, ECCKEY_INT_LEN, s_str);
+	ovf = str2bin_b64((unsigned char *)sig->sig_s, ECCKEY_INT_LEN*4, s_str);
 
 	return ovf;
 }

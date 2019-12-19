@@ -48,3 +48,6 @@ release: LDFLAGS += -Wl,-O2
 	$(COMPILE.c) -MMD -MP -c $< -o $@
 
 -include $(deps)
+
+libecc256.so: ecc_secp256k1.o sha256.o dscrc.o base64.o dsaes.o ripemd160.o
+	$(LINK.o) $^  -lasound  -lgmp -o $@

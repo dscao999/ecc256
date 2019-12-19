@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "base64.h"
 
 #define B64_BITS	6
@@ -55,6 +56,28 @@ static unsigned int bignum_rshift(unsigned int bignums[], int num)
 	return retv;
 }
 
+static int bignum_insert(unsigned int bignums[], int num, int v, int bitpos)
+{
+	int wpos, bit_inw;
+	unsigned int mw;
+
+	wpos = num - (bitpos >> 5) - 1;
+	if (wpos < 0)
+		return 1;
+	bit_inw = bitpos & 0x1f;
+	mw = bignums[wpos];
+	mw |= (v << bit_inw);
+	bignums[wpos] = mw;
+	if (bit_inw + B64_BITS > 31) {
+		if (wpos == 0 && (v >> (32 - bit_inw)) != 0)
+			return 1;
+		mw = bignums[wpos-1];
+		mw |= (v >> (32 - bit_inw));
+		bignums[wpos-1] = mw;
+	}
+	return 0;
+}
+
 static int bignum_lshift(unsigned int bignums[], int num, int v)
 {
 	int i, nzero, retv = 0, ovflow;
@@ -102,11 +125,114 @@ int str2bignum_b64(unsigned int bignums[], int num, const char *buf)
 			digit = 63;
 		else
 			return idx;
+		ovflow = bignum_insert(bignums, num, digit, idx*B64_BITS);
 		idx++;
-		ovflow = bignum_lshift(bignums, num, digit);
 	}
 
 	return ovflow;
+}
+
+int str2bin_b64(unsigned char *binbytes, int num, const char *str)
+{
+	int bpos, bitpos, bbit, padded, shnxt;
+	const char *pchr;
+	char nchr;
+	unsigned short nv, digit;
+
+	memset(binbytes, 0, num);
+
+	padded = 0;
+	bitpos = 0;
+	pchr = str;
+	while (*pchr != 0) {
+		nchr = *pchr++;
+		if (nchr >= 'A' && nchr <= 'Z')
+			digit = nchr - 'A';
+		else if (nchr >= 'a' && nchr <= 'z')
+			digit = (nchr - 'a') + 26;
+		else if (nchr >= '0' && nchr <= '9')
+			digit = (nchr - '0') + 52;
+		else if (nchr == '+')
+			digit = 62;
+		else if (nchr == '/')
+			digit = 63;
+		else if (nchr == '=') {
+			padded = 1;
+			break;
+		} else
+			break;
+
+		shnxt = 0;
+		bpos = bitpos >> 3;
+		if (bpos == num)
+			return -1;
+		bbit =  7 - (bitpos & 7);
+		if (bbit > 5)
+			binbytes[bpos] |= (digit << (bbit - 5));
+		else if (bbit < 5) {
+			shnxt = 1;
+			binbytes[bpos] |= (digit >> (5 - bbit));
+			nv = (digit << (3 + bbit)) & 0x0ff;
+			if (bpos == num - 1) {
+				if (nv != 0)
+					return -1;
+			} else {
+				binbytes[bpos+1] |= nv;
+			}
+		} else
+			binbytes[bpos] |= digit;
+		bitpos += B64_BITS;
+	}
+	if (bbit != 5 && (shnxt != 1 || nv != 0 || padded == 0))
+		return -2;
+	return bpos;
+}
+
+int bin2str_b64(char *strbuf, int len, const unsigned char *binbytes, int num)
+{
+	int numbits, i;
+	char *p64;
+	unsigned char mc;
+	int bpos, bbit, padded, rsb;
+	unsigned short tmpc, mask;
+
+	numbits = num << 3;
+
+	padded = 0;
+	p64 = strbuf;
+	for (i = 0; i < numbits; i += B64_BITS) {
+		bpos = (i >> 3);
+		bbit = i & 7;
+		rsb = 8 - (bbit + B64_BITS);
+		tmpc = binbytes[bpos];
+		mask = 0x0ff;
+		if (rsb < 0) {
+			if (bpos == num - 1) {
+				padded = 1;
+				mc = 0;
+			} else
+				mc = binbytes[bpos+1];
+			mask = 0x0ffff;
+			tmpc = (tmpc << 8) | mc;
+			rsb += 8;
+		}
+		tmpc = ((tmpc << bbit) & mask) >> (bbit + rsb);
+//		tmpc = tmpc >> rsb;
+		assert(tmpc < 64);
+		if (p64 < strbuf +  len)
+			*p64 = BASE64_CHAR[tmpc];
+		p64++;
+	}
+	if (padded) {
+		if (p64 < strbuf + len)
+			*p64 = '=';
+		p64++;
+	}
+	if (p64 < strbuf + len)
+		*p64 = 0;
+	else
+		*(strbuf+len-1) = 0;
+	return p64 - strbuf;
 }
 
 int bignum2str_b64(char *buf, int len, const unsigned int bigones[], int num)
@@ -140,7 +266,7 @@ int bignum2str_b64(char *buf, int len, const unsigned int bigones[], int num)
 		buf[idx] = 0;
 	else
 		buf[len-1] = 0;
-	strrev(buf);
+//	strrev(buf);
 
 	free(bignums);
 	return idx;

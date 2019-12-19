@@ -6,9 +6,9 @@
 
 int main(int argc, char *argv[])
 {
-	int retv = 0, count;
-	struct alsa_param *alsa;
+	int retv = 0, count, buflen;
 	char strbuf[64];
+	unsigned char *buf;
 	unsigned int dgst[8], bkdgst[8];
 	int sec = 0, i;
 	const char *sdname = NULL;
@@ -22,25 +22,24 @@ int main(int argc, char *argv[])
 	if (sdname == NULL)
 		sdname = "hw:0,0";
 
-	alsa = alsa_init(sdname, sec);
-	if (!alsa)
-		return 10000;
+	alsa_init();
+	buflen = alsa_reclen(sec);
+	buf = malloc(buflen);
 
 	count = 0;
 	do {
-		if (alsa_record(alsa) != 0) {
+		if (alsa_record(sec, (char *)buf, buflen) < 0) {
 			fprintf(stderr, "Failed to get an random number!\n");
 			break;
 		}
-		alsa_random(dgst, alsa->buf, alsa->buflen);
-		bignum2str_b64(strbuf, 64, dgst, 8);
+		alsa_random(dgst, buf, buflen);
+		bin2str_b64(strbuf, 64, (const unsigned char *)dgst, 32);
 		printf("%s\n", strbuf);
-		str2bignum_b64(bkdgst, 8, strbuf);
+		str2bin_b64((unsigned char *)bkdgst, 32, strbuf);
 		for (i = 0; i < 8; i++)
 			if (dgst[i] != bkdgst[i])
 				printf("Failed!\n");
 	} while (++count < 10);
 
-	alsa_exit(alsa);
 	return retv;
 }

@@ -32,6 +32,7 @@ struct keyparam {
 	const char *pass;
 	const char *keystr;
 	int nosigfile;
+	int exstr;
 };
 
 static int key_save2file(const struct keyparam *param)
@@ -68,10 +69,12 @@ static int key_process(struct keyparam *param, int action)
 		key_save2file(param);
 	} else if (action & IMPORT_KEY) {
 		retv = ecc_key_import(&param->key, param->keystr);
-		if (retv)
+		if (retv == -65)
 			logmsg(LOG_ERR, "Invalid public key!\n");
 		else if (!ecc_pubkey_only(&param->key))
 			key_save2file(param);
+		if (retv < 0)
+			logmsg(LOG_WARNING, "Big Number Invlid/Overflow.\n");
 	} else if (param->keyfile) {
 		ko = fopen(param->keyfile, "rb");
 		if (check_pointer(ko, LOG_ERR, "Cannot open key file %s.",
@@ -140,10 +143,10 @@ static int sign_file(const struct keyparam *param,
 		crc = crc32((unsigned char *)sig, sizeof(struct ecc_sig));
 		sysret = fwrite(&crc, sizeof(crc), 1, mi);
 	} else {
-		rlen = bignum2str_b64(sigfile, 70, sig->sig_r, ECCKEY_INT_LEN);
+		rlen = bin2str_b64(sigfile, 70, (const unsigned char *)sig->sig_r, ECCKEY_INT_LEN*4);
 		sigfile[rlen] = ',';
-		slen = bignum2str_b64(sigfile+rlen+1, 69,
-				sig->sig_s, ECCKEY_INT_LEN);
+		slen = bin2str_b64(sigfile+rlen+1, 69,
+				(const unsigned char *)sig->sig_s, ECCKEY_INT_LEN*4);
 		assert(rlen+slen+1 < 140);
 	}
 
@@ -221,9 +224,14 @@ static int verify_file(const struct keyparam *param,
 			logmsg(LOG_ERR, "Corrupted signature!\n");
 			goto exit_20;
 		}
+		if (param->exstr) {
+			char *xbuf = malloc(100);
+			ecc_sig2str(xbuf, 100, sig);
+			printf("%s\n", xbuf);
+		}
 		retv = ecc_verify(sig, &param->key, mesg, len);
 	} else {
-		if (ecc_str2sig(sig, sigfile)) {
+		if (ecc_str2sig(sig, sigfile) < 0) {
 			logmsg(LOG_ERR, "Overflow, not a valid signiture.\n");
 			goto exit_20;
 		}
@@ -259,6 +267,7 @@ int main(int argc, char *argv[])
 	kparam->keystr = NULL;
 	kparam->sdname = NULL;
 	kparam->nosigfile = 0;
+	kparam->exstr = 0;
 	sigfile = NULL;
 	msgfile = NULL;
 	retv = 0;
@@ -266,7 +275,7 @@ int main(int argc, char *argv[])
 	fin = 0;
 	action = 0;
 	do {
-		opt = getopt(argc, argv, ":a:hk:s::v::ge::i:p:");
+		opt = getopt(argc, argv, ":a:hk:s::v::ge::i:p:x");
 		switch(opt) {
 		case -1:
 			fin = 1;
@@ -276,6 +285,9 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			fprintf(stderr, "Unknown option: %c\n", optopt);
+			break;
+		case 'x':
+			kparam->exstr = 1;
 			break;
 		case 'h':
 			action |= HASH_PUBKEY;
@@ -352,7 +364,7 @@ int main(int argc, char *argv[])
 
 	ecc_init();
 
-	if (key_process(kparam, action))
+	if (key_process(kparam, action) < 0)
 		return 1;
 
 	if (action & SIGN_FILE) {
