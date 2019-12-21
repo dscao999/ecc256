@@ -78,29 +78,6 @@ static int bignum_insert(unsigned int bignums[], int num, int v, int bitpos)
 	return 0;
 }
 
-static int bignum_lshift(unsigned int bignums[], int num, int v)
-{
-	int i, nzero, retv = 0, ovflow;
-
-	nzero = bignum_leadzero(bignums, num);
-	if (nzero == num) {
-		bignums[num-1] = (v & B64_MASK);
-		return retv;
-	}
-
-	ovflow = bignums[nzero] >> (32 - B64_BITS);
-	if (nzero > 0)
-		bignums[nzero-1] = ovflow;
-	else
-		retv = ovflow;
-	for (i = nzero; i < num - 1; i++)
-		bignums[i] = (bignums[i] << B64_BITS) |
-				(bignums[i+1] >> (32 - B64_BITS));
-	bignums[num-1] = (bignums[num-1] << B64_BITS) | (v & B64_MASK);
-
-	return retv;
-}
-
 int str2bignum_b64(unsigned int bignums[], int num, const char *buf)
 {
 	int i, digit, idx, ovflow = 0;

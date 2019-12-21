@@ -9,7 +9,9 @@
 #include <assert.h>
 #include <errno.h>
 #include "ecc_secp256k1.h"
+#ifdef __linux__
 #include "alsarec.h"
+#endif /* __linux__ */
 #include "base64.h"
 #include "dscrc.h"
 #include "dsaes.h"
@@ -388,6 +390,7 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 	point_clear(&P);
 }
 
+#ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
 	int retv, buflen;
@@ -417,68 +420,69 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 
 	return retv;
 }
+#endif /* __linux__ */
 
-int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len)
+void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
+		const char *ps, int len)
 {
-	void *buf;
+	unsigned char buf[48];
 	struct ripemd160 ripe;
 	struct aeskey aes;
-	int retv = 0, no, reclen;
+	int reclen;
 	unsigned int *crc, ucrc;
 
 	reclen = ECCKEY_INT_LEN + AES128_BLOCK_LEN/4;
-	buf = malloc(reclen*8);
-	if (!check_pointer(buf, LOG_CRIT, nomem))
-		return NOMEM;
+	assert(reclen == 12);
 	ripemd160_reset(&ripe);
 	ripemd160_dgst(&ripe, (CBYTE *)ps, len);
 	aes_reset(&aes, (CBYTE *)ripe.H);
 	memcpy(buf, ecckey->pr, ECCKEY_INT_LEN*4);
-	crc = buf + (reclen - 1) * 4;
+	crc = (unsigned int *)(buf + (reclen - 1) * 4);
 	ucrc = crc32(buf, (reclen - 1)*4);
 	*crc = swap32(ucrc);
-	dsaes(&aes, buf, buf+reclen*4, reclen*4);
-
-	no = fwrite(buf+reclen*4, 1, reclen*4, fo);
-	if (no != reclen*4) {
-		logmsg(LOG_WARNING, "Cannot save key to file: %s\n", strerror(errno));
-		retv = errno;
-	}
-	free(buf);
-	return retv;
+	dsaes(&aes, buf, bt, reclen*4);
 }
 
-int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len)
+int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
+		const char *ps, int len)
 {
-	void *buf;
 	struct ripemd160 ripe;
 	struct aeskey aes;
-	int retv = 0, no, reclen;
+	int reclen, retv = 0;
 
 	reclen = ECCKEY_INT_LEN+AES128_BLOCK_LEN/4;
-	buf = malloc(reclen*4);
-	if (!check_pointer(buf, LOG_CRIT, nomem))
-		return NOMEM;
-
-	no = fread(buf, 1, reclen*4, fi);
-	if (no != reclen*4) {
-		logmsg(LOG_WARNING, "Cannot read key from file: %s\n", strerror(errno));
-		retv = errno;
-		goto exit_10;
-	}
+	assert(reclen == 12);
 	ripemd160_reset(&ripe);
 	ripemd160_dgst(&ripe, (CBYTE *)ps, len);
 	aes_reset(&aes, (CBYTE *)ripe.H);
-	un_dsaes(&aes, buf, (BYTE *)ecckey->pr, reclen*4);
+	un_dsaes(&aes, bt, (BYTE *)ecckey->pr, reclen*4);
 	if (crc32((CBYTE *)ecckey->pr, reclen*4)) {
 		logmsg(LOG_ERR, "Invalid passphrase.\n");
-		retv = 1;
+		retv = -1;
 	} else
 		compute_public(ecckey, 0);
-
-exit_10:
-	free(buf);
 	return retv;
+}
+
+static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
+{
+#ifdef __linux__
+	int buflen;
+	char *buf;
+
+	buflen = alsa_reclen(1);
+	if (buflen <= 0) {
+		logmsg(LOG_ERR, "Cannot make audio record.\n");
+		exit(1);
+	}
+	buf = malloc(buflen);
+	if (!check_pointer(buf, LOG_CRIT, nomem))
+		abort();
+	alsa_record(1, buf, buflen);
+	alsa_random(rnd, (const unsigned char *)buf, buflen);
+	free(buf);
+#else
+#endif /* __linux__ */
 }
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
@@ -490,8 +494,6 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_t k, r, s, dst, k_inv, prikey;
 	struct curve_point K;
 	size_t count_r, count_s;
-	int buflen;
-	char *abuf;
 
 	sha = sha256_init();
 	sha256(sha, mesg, len);
@@ -510,18 +512,9 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	mpz_init2(k_inv, BITLEN);
 	mpz_init2(r, BITLEN);
 
-	buflen = alsa_reclen(1);
-	if (buflen <= 0) {
-		logmsg(LOG_ERR, "Cannot make audio record.\n");
-		exit(1);
-	}
-	abuf = malloc(buflen);
-	if (!check_pointer(abuf, LOG_CRIT, nomem))
-		exit(100);
 	do {
 		do {
-			alsa_record(1, abuf, buflen);
-			alsa_random(kx, (const unsigned char *)abuf, buflen);
+			rnd32byte(kx);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 
@@ -536,7 +529,6 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		mpz_mul(s, k_inv, s);
 		mpz_mod(s, s, epn);
 	} while (mpz_cmp_ui(s, 0) == 0);
-	free(abuf);
 
 	mpz_export(sig->sig_r, &count_r, 1, 4, 0, 0, r);
 	mpz_export(sig->sig_s, &count_s, 1, 4, 0, 0, s); 

@@ -39,6 +39,7 @@ static int key_save2file(const struct keyparam *param)
 {
 	FILE *ko;
 	int retv = 0, plen;
+	unsigned char buf[48];
 
 	if (!param->keyfile) {
 		logmsg(LOG_ERR, "Cannot save key to file, no file specified.");
@@ -52,7 +53,8 @@ static int key_save2file(const struct keyparam *param)
 		plen = strlen(param->pass);
 	else
 		plen = 0;
-	retv = ecc_writkey(&param->key, ko, param->pass, plen);
+	ecc_writkey(&param->key, buf, param->pass, plen);
+	fwrite(buf, 1, 48, ko);
 	fclose(ko);
 	return retv;
 }
@@ -61,6 +63,7 @@ static int key_process(struct keyparam *param, int action)
 {
 	FILE *ko;
 	int plen = 0, retv = 0;
+	unsigned char buf[48];
 
 	if (param->pass)
 		plen = strlen(param->pass);
@@ -79,7 +82,8 @@ static int key_process(struct keyparam *param, int action)
 		ko = fopen(param->keyfile, "rb");
 		if (check_pointer(ko, LOG_ERR, "Cannot open key file %s.",
 					param->keyfile)) {
-			retv = ecc_readkey(&param->key, ko, param->pass, plen);
+			fread(buf, 1, 48, ko);
+			ecc_readkey(&param->key, buf, param->pass, plen);
 			fclose(ko);
 		}
 	} else

@@ -35,9 +35,13 @@ static inline int ecc_pubkey_only(const struct ecc_key *ekey)
 			return 0;
 	return 1;
 }
+#ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs);
-int ecc_writkey(const struct ecc_key *ecckey, FILE *fo, const char *ps, int len);
-int ecc_readkey(struct ecc_key *ecckey, FILE *fi, const char *ps, int len);
+#endif
+void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
+		const char *ps, int len);
+int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
+		const char *ps, int len);
 
 int ecc_key_export(char *str, int len, const struct ecc_key *ecckey, int flag);
 int ecc_key_import(struct ecc_key *ecckey, const char *str);

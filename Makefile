@@ -50,4 +50,4 @@ release: LDFLAGS += -Wl,-O2
 -include $(deps)
 
 libecc256.so: ecc_secp256k1.o sha256.o dscrc.o base64.o dsaes.o ripemd160.o
-	$(LINK.o) $^  -lasound  -lgmp -o $@
+	$(LINK.o) -shared $^  -lasound  -lgmp -o $@
