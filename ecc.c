@@ -62,7 +62,7 @@ static int key_save2file(const struct keyparam *param)
 static int key_process(struct keyparam *param, int action)
 {
 	FILE *ko;
-	int plen = 0, retv = 0;
+	int plen = 0, retv = 0, nr;
 	unsigned char buf[48];
 
 	if (param->pass)
@@ -82,8 +82,11 @@ static int key_process(struct keyparam *param, int action)
 		ko = fopen(param->keyfile, "rb");
 		if (check_pointer(ko, LOG_ERR, "Cannot open key file %s.",
 					param->keyfile)) {
-			fread(buf, 1, 48, ko);
-			ecc_readkey(&param->key, buf, param->pass, plen);
+			nr = fread(buf, 1, 48, ko);
+			while (nr == 48) {
+				ecc_readkey(&param->key, buf, param->pass, plen);
+				nr = fread(buf, 1, 48, ko);
+			}
 			fclose(ko);
 		}
 	} else

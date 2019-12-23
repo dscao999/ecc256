@@ -609,7 +609,13 @@ int ecc_key_export(char *str, int buflen,
 		return 1;
 	*str = fm;
 	len = bin2str_b64(str+1, buflen-1, (const unsigned char *)key, ECCKEY_INT_LEN*4);
-	return len + 1 > buflen? 2:0;
+	return len + 1 > buflen? -(len+1):(len+1);
+}
+
+int ecc_key_export_str(char *str, int len, const unsigned char ekey[96],
+		int flag)
+{
+	return ecc_key_export(str, len, (const struct ecc_key *)ekey, flag);
 }
 
 int ecc_key_import(struct ecc_key *ecckey, const char *str)
@@ -697,18 +703,15 @@ void ecc_prn_table(void)
 int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 {
 	int len;
-	struct ripemd160 *ripe;
+	struct ripemd160 ripe;
 	char buf[64];
 
-	ripe = ripemd160_init();
-	if (!check_pointer(ripe, LOG_CRIT, nomem))
-		return NOMEM;
+	ripemd160_reset(&ripe);
 	len = ecc_key_export(buf, 64, ecckey, ECCKEY_EXPUB);
-	assert(len < 64);
-	ripemd160_dgst(ripe, (CBYTE *)buf, len);
+	assert(len < 64 && len == strlen(buf));
+	ripemd160_dgst(&ripe, (CBYTE *)buf, len);
 
-	len = bin2str_b64(str, buflen, (const unsigned char *)ripe->H, RIPEMD_LEN);
-	ripemd160_exit(ripe);
+	len = bin2str_b64(str, buflen, (const unsigned char *)ripe.H, RIPEMD_LEN);
 	return len;
 }
 
@@ -751,4 +754,14 @@ int ecc_str2sig(struct ecc_sig *sig, const char *str)
 	ovf = str2bin_b64((unsigned char *)sig->sig_s, ECCKEY_INT_LEN*4, s_str);
 
 	return ovf;
+}
+
+int ecc_key_import_str(unsigned char ecckey[96], const char *str)
+{
+	        return ecc_key_import((struct ecc_key *)ecckey, str);
+}
+
+int ecc_key_hash_str(char *str, int len, const unsigned char ekey[96])
+{
+	        return ecc_key_hash(str, len, (const struct ecc_key *)ekey);
 }

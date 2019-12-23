@@ -44,8 +44,14 @@ int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
 		const char *ps, int len);
 
 int ecc_key_export(char *str, int len, const struct ecc_key *ecckey, int flag);
+int ecc_key_export_str(char *str, int len, const unsigned char ekey[96],
+		int flag);
+
 int ecc_key_import(struct ecc_key *ecckey, const char *str);
+int ecc_key_import_str(unsigned char ecckey[96], const char *str);
+
 int ecc_key_hash(char *str, int len, const struct ecc_key *ecckey);
+int ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
