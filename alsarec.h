@@ -3,11 +3,11 @@
 
 #include <alsa/asoundlib.h>
 
-int alsa_init(void);
+int alsa_init(const char *sdname);
 void alsa_exit(void);
 
 int alsa_reclen(int sec);
-int alsa_record(int sec, char *buf, int buflen);
+int alsa_record(int sec, unsigned char *buf, int buflen);
 
 void alsa_random(unsigned int dgst[8], const unsigned char *buf, int len);
 

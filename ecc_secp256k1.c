@@ -395,7 +395,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
 	int retv, buflen;
 	mpz_t x;
-	char *abuf;
+	unsigned char *abuf;
 
 	mpz_init2(x, BITLEN);
 
@@ -468,7 +468,7 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 {
 #ifdef __linux__
 	int buflen;
-	char *buf;
+	unsigned char *buf;
 
 	buflen = alsa_reclen(1);
 	if (buflen <= 0) {
@@ -702,14 +702,13 @@ void ecc_prn_table(void)
 
 int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 {
-	int len;
 	struct ripemd160 ripe;
-	char buf[64];
+	char buf[ECCKEY_INT_LEN*8];
+	int len;
 
 	ripemd160_reset(&ripe);
-	len = ecc_key_export(buf, 64, ecckey, ECCKEY_EXPUB);
-	assert(len < 64 && len == strlen(buf));
-	ripemd160_dgst(&ripe, (CBYTE *)buf, len);
+	memcpy(buf, ecckey->px, sizeof(buf));
+	ripemd160_dgst(&ripe, (CBYTE *)buf, sizeof(buf));
 
 	len = bin2str_b64(str, buflen, (const unsigned char *)ripe.H, RIPEMD_LEN);
 	return len;

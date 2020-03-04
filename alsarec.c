@@ -8,14 +8,12 @@
 static char sdname[32];
 static snd_pcm_hw_params_t *hwparams;
 
-int alsa_init(void)
+static void alsa_dev_search(void)
 {
 	snd_ctl_t *hdl;
-	snd_pcm_t *pcmhdl;
-	int snderr, card, sddev, stream, retv = 0;
-	unsigned int noch, srate;
 	snd_pcm_info_t *pcminfo = NULL;
 	snd_ctl_card_info_t *info = NULL;
+	int snderr, card, stream, sddev;
 
 	snd_ctl_card_info_malloc(&info);
 	snd_pcm_info_malloc(&pcminfo);
@@ -58,10 +56,20 @@ int alsa_init(void)
 	snd_pcm_info_free(pcminfo);
 	snd_ctl_card_info_free(info);
 	snd_config_update_free_global();
-	if (sdname[0] == 0) {
+	if (sdname[0] == 0)
 		logmsg(LOG_ERR, "No Sound Card!\n");
-		return -1;
-	}
+}
+
+int alsa_init(const char *sdevname)
+{
+	snd_pcm_t *pcmhdl;
+	int snderr, retv = 0;
+	unsigned int noch, srate;
+
+	if (!sdevname)
+		alsa_dev_search();
+	else
+		strcpy(sdname, sdevname);
 
 	snderr = snd_pcm_hw_params_malloc(&hwparams);
 	if (snderr < 0) {
@@ -159,7 +167,7 @@ err_40:
 	return len;
 }
 
-int alsa_record(int sec, char *buf, int buflen)
+int alsa_record(int sec, unsigned char *buf, int buflen)
 {
 	snd_pcm_t *pcmhdl;
 	int snderr, retv = 0, frame_len;

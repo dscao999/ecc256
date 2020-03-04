@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
-	alsa_init();
+	alsa_init(NULL);
 	kparam = malloc(sizeof(struct keyparam));
 	if (!check_pointer(kparam, LOG_CRIT, nomem))
 		return NOMEM;
