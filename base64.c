@@ -118,8 +118,12 @@ int str2bin_b64(unsigned char *binbytes, int num, const char *str)
 
 	memset(binbytes, 0, num);
 
+	bpos = 0;
 	padded = 0;
 	bitpos = 0;
+	bbit = 5;
+	nv = 0;
+	shnxt = 0;
 	pchr = str;
 	while (*pchr != 0) {
 		nchr = *pchr++;
@@ -162,7 +166,7 @@ int str2bin_b64(unsigned char *binbytes, int num, const char *str)
 	}
 	if (bbit != 5 && (shnxt != 1 || nv != 0 || padded == 0))
 		return -2;
-	return bpos;
+	return bpos + 1;
 }
 
 int bin2str_b64(char *strbuf, int len, const unsigned char *binbytes, int num)

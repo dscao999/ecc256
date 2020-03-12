@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 	if (sec == 0)
 		sec = 5;
 
-	if (alsa_init() < 0) {
+	if (alsa_init(NULL) < 0) {
 		logmsg(LOG_ERR, "Cannot Initialize Random Source!\n");
 		return 1;
 	}
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	abuf = malloc(buflen);
 	count = 0;
 	do {
-		if (alsa_record(sec, abuf, buflen) < 0) {
+		if (alsa_record(sec, (unsigned char *)abuf, buflen) < 0) {
 			fprintf(stderr, "Failed to get an random number!\n");
 			break;
 		}
