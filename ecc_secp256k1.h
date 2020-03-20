@@ -55,6 +55,8 @@ int ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
+void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char *prkey,
+		const unsigned char *mesg, int len);
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);

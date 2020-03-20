@@ -485,6 +485,16 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 #endif /* __linux__ */
 }
 
+void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char *prkey, 
+		const unsigned char *mesg, int len)
+{
+	struct ecc_key key;
+
+	memcpy(key.pr, prkey, ECCKEY_INT_LEN*4);
+	compute_public(&key, 0);
+	ecc_sign(sig, &key, mesg, len);
+}
+
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
 {
