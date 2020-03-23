@@ -485,7 +485,7 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 #endif /* __linux__ */
 }
 
-void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char *prkey, 
+void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char prkey[32], 
 		const unsigned char *mesg, int len)
 {
 	struct ecc_key key;
@@ -498,17 +498,16 @@ void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char *prkey,
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
 {
-	struct sha256 *sha;
+	struct sha256 sha;
 	unsigned int dgst[ECCKEY_INT_LEN];
 	unsigned int kx[ECCKEY_INT_LEN];
 	mpz_t k, r, s, dst, k_inv, prikey;
 	struct curve_point K;
 	size_t count_r, count_s;
 
-	sha = sha256_init();
-	sha256(sha, mesg, len);
-	memcpy(dgst, sha->H, ECCKEY_INT_LEN*4);
-	sha256_exit(sha);
+	sha256_reset(&sha);
+	sha256(&sha, mesg, len);
+	memcpy(dgst, sha.H, ECCKEY_INT_LEN*4);
 
 	mpz_init2(dst, BITLEN);
 	mpz_import(dst, ECCKEY_INT_LEN, 1, 4, 0, 0, dgst);
@@ -637,14 +636,17 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str)
 	switch(*str) {
 	case '0':
 		retv = str2bin_b64((unsigned char *)ecckey->pr, ECCKEY_INT_LEN*4, str+1);
+		assert(retv == 32);
 		compute_public(ecckey, 0);
 		break;
 	case '1':
 		retv = str2bin_b64((unsigned char *)ecckey->px, ECCKEY_INT_LEN*4, str+1);
+		assert(retv == 32);
 		compute_public(ecckey, 1);
 		break;
 	case '2':
 		retv = str2bin_b64((unsigned char *)ecckey->px, ECCKEY_INT_LEN*4, str+1);
+		assert(retv == 32);
 		compute_public(ecckey, 2);
 		break;
 	}
