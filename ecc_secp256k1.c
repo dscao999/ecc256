@@ -390,6 +390,12 @@ static void compute_public(struct ecc_key *ecckey, int flag)
 	point_clear(&P);
 }
 
+void ecc_get_public_y(struct ecc_key *ekey, int flag)
+{
+	assert(flag == 1 || flag == 2);
+	compute_public(ekey, flag);
+}
+
 #ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
@@ -715,13 +721,10 @@ void ecc_prn_table(void)
 int ecc_key_hash(char *str, int buflen, const struct ecc_key *ecckey)
 {
 	struct ripemd160 ripe;
-	char buf[ECCKEY_INT_LEN*8];
 	int len;
 
 	ripemd160_reset(&ripe);
-	memcpy(buf, ecckey->px, sizeof(buf));
-	ripemd160_dgst(&ripe, (CBYTE *)buf, sizeof(buf));
-
+	ripemd160_dgst(&ripe, (const unsigned char *)ecckey->px, ECCKEY_INT_LEN*8);
 	len = bin2str_b64(str, buflen, (const unsigned char *)ripe.H, RIPEMD_LEN);
 	return len;
 }

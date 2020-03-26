@@ -61,6 +61,8 @@ void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char prkey[32],
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
 
+void ecc_get_public_y(struct ecc_key *ecckey, int flag);
+
 int ecc_gen_table(void);
 void ecc_prn_table(void);
 #endif /* ECC_SECP256K1_DSCAO__ */
