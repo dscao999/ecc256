@@ -46,9 +46,11 @@ static int key_save2file(const struct keyparam *param)
 		return 3;
 	}
 	ko = fopen(param->keyfile, "wb");
-	if (!check_pointer(ko, LOG_ERR, "Cannot open file %s for writing.\n",
-				param->keyfile))
+	if (!ko) {
+		logmsg(LOG_ERR, "Cannot open file %s for writing.\n",
+				param->keyfile);
 		return 4;
+	}
 	if (param->pass)
 		plen = strlen(param->pass);
 	else
@@ -80,15 +82,16 @@ static int key_process(struct keyparam *param, int action)
 			logmsg(LOG_WARNING, "Big Number Invlid/Overflow.\n");
 	} else if (param->keyfile) {
 		ko = fopen(param->keyfile, "rb");
-		if (check_pointer(ko, LOG_ERR, "Cannot open key file %s.",
-					param->keyfile)) {
-			nr = fread(buf, 1, 48, ko);
-			while (nr == 48) {
-				ecc_readkey(&param->key, buf, param->pass, plen);
-				nr = fread(buf, 1, 48, ko);
-			}
-			fclose(ko);
+		if (!ko) {
+			logmsg(LOG_ERR, "Cannot open key file %s.", param->keyfile);
+			return -2;
 		}
+		nr = fread(buf, 1, 48, ko);
+		while (nr == 48) {
+			ecc_readkey(&param->key, buf, param->pass, plen);
+			nr = fread(buf, 1, 48, ko);
+		}
+		fclose(ko);
 	} else
 		logmsg(LOG_ERR, "A key file must be specified.\n");
 	return retv;
@@ -113,8 +116,8 @@ static int sign_file(const struct keyparam *param,
 	}
 	len = malloc_len(mstat.st_size);
 	area = malloc(len+sizeof(struct ecc_sig));
-	if (!check_pointer(area, LOG_CRIT, nomem))
-		return NOMEM;
+	if (!check_pointer(area))
+		return -ENOMEM;
 	mesg = area;
 	sig =  area + len;
 
@@ -190,8 +193,8 @@ static int verify_file(const struct keyparam *param,
 		return errno;
 	}
 	area = malloc(malloc_len(fst.st_size)+sizeof(struct ecc_sig));
-	if (!check_pointer(area, LOG_CRIT, nomem)) {
-		retv = NOMEM;
+	if (!check_pointer(area)) {
+		retv = -ENOMEM;
 		goto exit_10;
 	}
 	len = fst.st_size;
@@ -266,9 +269,10 @@ int main(int argc, char *argv[])
 	extern char *optarg;
 
 	alsa_init(NULL);
+	ecc_init();
 	kparam = malloc(sizeof(struct keyparam));
-	if (!check_pointer(kparam, LOG_CRIT, nomem))
-		return NOMEM;
+	if (!check_pointer(kparam))
+		return -ENOMEM;
 	kparam->pass= NULL;
 	kparam->keyfile = NULL;
 	kparam->keystr = NULL;
@@ -349,9 +353,9 @@ int main(int argc, char *argv[])
 		fnamlen = strlen(msgfile);
 
 	buffer = malloc(fnamlen+600);
-	if (!check_pointer(buffer, LOG_CRIT, nomem)) {
+	if (!check_pointer(buffer)) {
 		free(kparam);
-		return NOMEM;
+		return -ENOMEM;
 	}
 	if (action & (SIG_VERIFY|SIGN_FILE)) {
 		sigfile = buffer;
@@ -369,7 +373,6 @@ int main(int argc, char *argv[])
 	}
 	exbuf = buffer + 300;
 
-	ecc_init();
 
 	if (key_process(kparam, action) < 0)
 		return 1;

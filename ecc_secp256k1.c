@@ -411,7 +411,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 		return -1;
 	}
 	abuf = malloc(buflen);
-	if (!check_pointer(abuf, LOG_CRIT, nomem))
+	if (!check_pointer(abuf))
 		exit(100);
 	do {
 		retv = alsa_record(secs, abuf, buflen);
@@ -482,7 +482,7 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 		exit(1);
 	}
 	buf = malloc(buflen);
-	if (!check_pointer(buf, LOG_CRIT, nomem))
+	if (!check_pointer(buf))
 		abort();
 	alsa_record(1, buf, buflen);
 	alsa_random(rnd, (const unsigned char *)buf, buflen);

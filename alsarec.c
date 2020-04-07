@@ -218,10 +218,11 @@ err_10:
 	return retv;
 }
 
-static struct sha256 sha;
 
 void alsa_random(unsigned int dgst[8], const unsigned char *buf, int len)
 {
+	struct sha256 sha;
+
 	sha256_reset(&sha);
 	sha256(&sha, (unsigned char *)buf, len);
 	memcpy(dgst, sha.H, 32);
