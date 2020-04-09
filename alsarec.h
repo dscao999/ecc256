@@ -11,4 +11,6 @@ int alsa_record(int sec, unsigned char *buf, int buflen);
 
 void alsa_random(unsigned int dgst[8], const unsigned char *buf, int len);
 
+int noise_random(unsigned int dgst[8], int sec);
+
 #endif /* ALSA_RANDOM_DSCAO__ */

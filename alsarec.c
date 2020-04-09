@@ -227,3 +227,22 @@ void alsa_random(unsigned int dgst[8], const unsigned char *buf, int len)
 	sha256(&sha, (unsigned char *)buf, len);
 	memcpy(dgst, sha.H, 32);
 }
+
+int noise_random(unsigned int dgst[8], int sec)
+{
+	unsigned char *buf;
+	int len, retv;
+
+	if (sec == 0)
+		sec = 1;
+	len = alsa_reclen(sec);
+	if (len < 0)
+		return len;
+	buf = malloc(len);
+	if (!check_pointer(buf))
+		return 0;
+	retv = alsa_record(sec, buf, len);
+	alsa_random(dgst, buf, len);
+	free(buf);
+	return retv;
+}
