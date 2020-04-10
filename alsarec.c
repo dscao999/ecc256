@@ -63,10 +63,10 @@ static void alsa_dev_search(void)
 int alsa_init(const char *sdevname)
 {
 	snd_pcm_t *pcmhdl;
-	int snderr, retv = 0;
+	int snderr;
 	unsigned int noch, srate;
 
-	if (!sdevname)
+	if (!sdevname || strlen(sdevname) == 0)
 		alsa_dev_search();
 	else
 		strcpy(sdname, sdevname);
@@ -122,7 +122,7 @@ int alsa_init(const char *sdevname)
 	}
 	snd_pcm_close(pcmhdl);
 
-	return retv;
+	return snderr;
 
 err_50:
 	snd_pcm_hw_params_free(hwparams);
@@ -131,7 +131,7 @@ err_40:
 	snd_pcm_close(pcmhdl);
 err_30:
 	sdname[0] = 0;
-	return retv;
+	return snderr;
 }
 
 void alsa_exit(void)
