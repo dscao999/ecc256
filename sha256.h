@@ -41,17 +41,12 @@ static inline void sha256_to_str(unsigned char str[SHA_DGST_LEN],
 		const unsigned char *buf, unsigned long len)
 {
 	struct sha256 sha;
+	int i;
 
 	sha256_reset(&sha);
 	sha256(&sha, buf, len);
-	sha.H[0] = swap32(sha.H[0]);
-	sha.H[1] = swap32(sha.H[1]);
-	sha.H[2] = swap32(sha.H[2]);
-	sha.H[3] = swap32(sha.H[3]);
-	sha.H[4] = swap32(sha.H[4]);
-	sha.H[5] = swap32(sha.H[5]);
-	sha.H[6] = swap32(sha.H[6]);
-	sha.H[7] = swap32(sha.H[7]);
+	for (i = 0; i < 8; i++)
+		sha.H[i] = swap32(sha.H[i]);
 	memcpy(str, sha.H, SHA_DGST_LEN);
 }
 
