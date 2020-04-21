@@ -62,6 +62,7 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
 
 void ecc_get_public_y(struct ecc_key *ecckey, int flag);
+void ecc_get_public(const unsigned char *skey, struct ecc_key *ecckey);
 
 int ecc_gen_table(void);
 void ecc_prn_table(void);

@@ -396,6 +396,12 @@ void ecc_get_public_y(struct ecc_key *ekey, int flag)
 	compute_public(ekey, flag);
 }
 
+void ecc_get_public(const unsigned char *skey, struct ecc_key *ekey)
+{
+	memcpy(ekey->pr, skey, ECCKEY_INT_LEN*4);
+	compute_public(ekey, 0);
+}
+
 #ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
