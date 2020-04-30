@@ -37,17 +37,19 @@ void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len);
 
 void sha256_file(struct sha256 *hd, FILE *fin);
 
-static inline void sha256_to_str(unsigned char str[SHA_DGST_LEN],
+static inline void sha256_dgst_2str(unsigned char dgst[SHA_DGST_LEN],
 		const unsigned char *buf, unsigned long len)
 {
 	struct sha256 sha;
 	int i;
+	unsigned int *H;
 
+	assert((((unsigned long)dgst) >> 2) << 2 == (unsigned long)dgst);
+	H = (unsigned int *)dgst;
 	sha256_reset(&sha);
 	sha256(&sha, buf, len);
 	for (i = 0; i < 8; i++)
-		sha.H[i] = swap32(sha.H[i]);
-	memcpy(str, sha.H, SHA_DGST_LEN);
+		*H++ = swap32(sha.H[i]);
 }
 
 #endif  /* SHA256_DSCAO__ */

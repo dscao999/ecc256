@@ -2,6 +2,8 @@
 #define RIPEMD160_DGST_DSCAO__
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include "loglog.h"
 
 #define RIPEMD_LEN	20
 
@@ -37,6 +39,20 @@ static inline void ripemd160_exit(struct ripemd160 *ripe)
 }
 
 void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len);
+static inline void ripemd160_dgst_2str(unsigned char dgst[RIPEMD_LEN],
+		const unsigned char *msg, int len)
+{
+	struct ripemd160 ripe;
+	unsigned int *H;
+	int i;
+
+	assert((((unsigned long)dgst >> 2) << 2) == (unsigned long)dgst);
+	H = (unsigned int *)dgst;
+	ripemd160_reset(&ripe);
+	ripemd160_dgst(&ripe, msg, len);
+	for (i = 0; i < 5; i++)
+		*H++ = swap32(ripe.H[0]);
+}
 
 void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin);
 #endif /* RIPEMD160_DGST_DSCAO__ */
