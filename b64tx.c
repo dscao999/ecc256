@@ -22,13 +22,13 @@ int main(int argc, char *argv[])
 	if (sdname == NULL)
 		sdname = "hw:0,0";
 
-	alsa_init();
+	alsa_init(NULL);
 	buflen = alsa_reclen(sec);
 	buf = malloc(buflen);
 
 	count = 0;
 	do {
-		if (alsa_record(sec, (char *)buf, buflen) < 0) {
+		if (alsa_record(sec, (unsigned char *)buf, buflen) < 0) {
 			fprintf(stderr, "Failed to get an random number!\n");
 			break;
 		}
