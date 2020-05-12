@@ -6,6 +6,7 @@
 #define SHA256_DSCAO__
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "loglog.h"
 
 #define SHA_BLOCK_LEN	64
