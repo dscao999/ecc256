@@ -34,7 +34,7 @@ crc: crc.o dscrc.o
 #	$(LINK.o) $^ -o $@
 
 b64tx: b64tx.o alsarec.o sha256.o base64.o
-	$(LINK.o) $^ -lasound -o $@
+	$(LINK.o) $^ -lasound -lgmp -o $@
 
 ripe: ripemd.o ripemd160.o base64.o
 	$(LINK.o) $^ -o $@
