@@ -11,7 +11,7 @@
  *                         x*8 + x*7 + x*5 + x*4 + x*2 + x + 1
  *
  */
-#include <stdio.h>
+#include "dscrc.h"
 
 static const unsigned char crc8_table[] = {
 	0x00, 0x9B, 0xAD, 0x36, 0xC1, 0x5A, 0x6C, 0xF7, 
