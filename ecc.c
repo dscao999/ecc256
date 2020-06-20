@@ -178,7 +178,7 @@ static int verify_file(const struct keyparam *param,
 	unsigned char *mesg;
 	struct ecc_sig *sig;
 	unsigned int crc;
-	unsigned long len;
+	ulong64 len;
 
 	retv = 0;
 	sysret = stat(msgfile, &fst);

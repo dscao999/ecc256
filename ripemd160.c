@@ -80,12 +80,12 @@ static inline unsigned int ripe_rol(int t, int j, unsigned int X)
 	return (X << nobits) | (X >> (32 - nobits));
 }
 
-static int ripe_padlen(unsigned char padded[64], unsigned long len,
+static int ripe_padlen(unsigned char padded[64], ulong64 len,
 		const unsigned char mesg[], int first)
 {
 	int rem;
 	union {
-		unsigned long len;
+		ulong64 len;
 		unsigned char fill[8];
 	} trailer;
 
@@ -169,7 +169,7 @@ void ripemd160_dgst(struct ripemd160 *ripe, const unsigned char *msg, int len)
 
 void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin)
 {
-	unsigned long len = 0;
+	ulong64 len = 0;
 	union {
 		unsigned int M[16];
 		char str[64];

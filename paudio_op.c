@@ -6,8 +6,8 @@
 #include "sha256.h"
 
 struct uopt {
-	volatile unsigned long frames;
-	unsigned long limit;
+	volatile ulong64 frames;
+	ulong64 limit;
 	unsigned char *buf;
 	const PaDeviceInfo *devinfo;
 	PaStreamParameters iparam;
@@ -16,7 +16,7 @@ struct uopt {
 };
 static struct uopt uop;
 
-static int recv_data(const void *ibuf, void *obuf, unsigned long fcount,
+static int recv_data(const void *ibuf, void *obuf, ulong64 fcount,
 		const PaStreamCallbackTimeInfo *tmInfo,
 		PaStreamCallbackFlags statusFlags, void *dat)
 {

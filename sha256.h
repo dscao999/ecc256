@@ -34,18 +34,18 @@ static inline void sha256_exit(struct sha256 *sha)
 		free(sha);
 }
 
-void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len);
+void sha256(struct sha256 *hd, const unsigned char *buf, ulong64 len);
 
 void sha256_file(struct sha256 *hd, FILE *fin);
 
 static inline void sha256_dgst_2str(unsigned char dgst[SHA_DGST_LEN],
-		const unsigned char *buf, unsigned long len)
+		const unsigned char *buf, ulong64 len)
 {
 	struct sha256 sha;
 	int i;
 	unsigned int *H;
 
-	assert((((unsigned long)dgst) >> 2) << 2 == (unsigned long)dgst);
+	assert((((ulong64)dgst) >> 2) << 2 == (ulong64)dgst);
 	H = (unsigned int *)dgst;
 	sha256_reset(&sha);
 	sha256(&sha, buf, len);

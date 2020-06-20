@@ -12,7 +12,7 @@
 int main(int argc, char *argv[])
 {
 	FILE *fin;
-	unsigned long flen;
+	ulong64 flen;
 	struct stat filest;
 	int i, nb;
 	struct sha256 *hd;

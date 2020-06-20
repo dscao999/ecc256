@@ -693,7 +693,7 @@ void ecc_prn_table(void)
 {
 	unsigned int px[8], py[8];
 	int i, j;
-	unsigned long cx, cy;
+	size_t cx, cy;
 
 	if (sub < 256)
 		return;

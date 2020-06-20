@@ -35,7 +35,7 @@ const static unsigned int H0[SHA_DGST_LEN/4] = {
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
-static int sha256_padlen(unsigned char *buf, unsigned long len,
+static int sha256_padlen(unsigned char *buf, ulong64 len,
 		const char *str, int msg)
 {
 	int rem;
@@ -124,10 +124,10 @@ void sha256_reset(struct sha256 *sha)
 	}
 }
 
-void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len)
+void sha256(struct sha256 *hd, const unsigned char *buf, ulong64 len)
 {
 	const unsigned char *block;
-	unsigned long pos;
+	ulong64 pos;
 	int done;
 	unsigned int M[16];
 
@@ -148,7 +148,7 @@ void sha256(struct sha256 *hd, const unsigned char *buf, unsigned long len)
 
 void sha256_file(struct sha256 *hd, FILE *fin)
 {
-	unsigned long len = 0;
+	ulong64 len = 0;
 	union {
 		unsigned int M[SHA_BLOCK_LEN/4];
 		char str[SHA_BLOCK_LEN];
