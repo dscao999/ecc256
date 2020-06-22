@@ -490,9 +490,9 @@ int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
 	return retv;
 }
 
+#ifdef __linux__
 static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 {
-#ifdef __linux__
 	int buflen;
 	unsigned char *buf;
 
@@ -507,18 +507,6 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 	alsa_record(1, buf, buflen);
 	alsa_random(rnd, (const unsigned char *)buf, buflen);
 	free(buf);
-#else
-#endif /* __linux__ */
-}
-
-void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char prkey[32], 
-		const unsigned char *mesg, int len)
-{
-	struct ecc_key key;
-
-	memcpy(key.pr, prkey, ECCKEY_INT_LEN*4);
-	compute_public(&key, 0);
-	ecc_sign(sig, &key, mesg, len);
 }
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
@@ -571,6 +559,8 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	point_clear(&K);
 	mpz_clears(k, r, dst, k_inv, s, prikey, NULL);
 }
+#elif defined(_WIN64)
+#endif /* __linux__ */
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)

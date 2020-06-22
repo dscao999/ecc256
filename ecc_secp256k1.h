@@ -53,10 +53,11 @@ int ecc_key_import_str(unsigned char ecckey[96], const char *str);
 int ecc_key_hash(char *str, int len, const struct ecc_key *ecckey);
 int ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
 
+#if defined(__linux__)
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
-void ecc_sign_pronly(struct ecc_sig *sig, const unsigned char prkey[32],
-		const unsigned char *mesg, int len);
+#elif defined(_WIN64)
+#endif
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
