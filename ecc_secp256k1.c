@@ -402,7 +402,6 @@ void ecc_get_public(const unsigned char *skey, struct ecc_key *ekey)
 	compute_public(ekey, 0);
 }
 
-#ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
 	int retv, buflen;
@@ -432,7 +431,22 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 
 	return retv;
 }
-#endif /* __linux__ */
+
+int ecc_genkey_py(struct ecc_key *ecckey, const unsigned char rnd[ECCKEY_LEN])
+{
+	mpz_t x;
+	int retv;
+
+	mpz_init2(x, BITLEN);
+	mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, rnd);
+	retv = mpz_cmp_ui(x, 0) != 0 && mpz_cmp(x, epn) < 0;
+	if (retv) {
+		memcpy(ecckey, rnd, ECCKEY_LEN);
+		compute_public(ecckey, 0);
+	}
+	mpz_clear(x);
+	return retv;
+}
 
 void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
 		const char *ps, int len)

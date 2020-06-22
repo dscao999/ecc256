@@ -8,6 +8,7 @@
  */
 
 #define ECCKEY_INT_LEN	8
+#define ECCKEY_LEN	(ECCKEY_INT_LEN*4)
 #define ECCKEY_EXPRIV	0x81
 #define ECCKEY_EXPUB	0x7e
 
@@ -35,9 +36,8 @@ static inline int ecc_pubkey_only(const struct ecc_key *ekey)
 			return 0;
 	return 1;
 }
-#ifdef __linux__
+int ecc_genkey_py(struct ecc_key *ecckey, const unsigned char rnd[ECCKEY_LEN]);
 int ecc_genkey(struct ecc_key *ecckey, int secs);
-#endif
 void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
 		const char *ps, int len);
 int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
