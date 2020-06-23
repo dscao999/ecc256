@@ -3,10 +3,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <time.h>
+#if defined(__linux__)
 #include <syslog.h>
+#elif defined(_WIN64)
+#define LOG_ERR 0
+#define LOG_CRIT 1
+#endif
 
 #define ENOMEM	12
 #define ENOSPACE	112
+
+#ifdef __cplusplus
+#define C_CALL extern "C"
+#else
+#define C_CALL
+#endif
 
 #if defined(__GNUC__)
 #define likely(x) __builtin_expect(x, 1)
@@ -15,11 +27,17 @@
 typedef unsigned long ulong64;
 typedef long long64;
 #elif defined(_MSC_VER)
+#define __attribute__(x)
 #define likely(x) (x)
 #define unlikely(x)	(x)
 #define DLLExport(retype) __declspec(dllexport) retype __cdecl
 typedef unsigned long long ulong64;
 typedef long long long64;
+#endif
+#if defined(_WIN64)
+#define CLOCK_REALTIME	0
+C_CALL void clock_gettime(int clock, struct timespec* tm);
+C_CALL void rand32bytes(unsigned char* rnd);
 #endif
 
 static inline unsigned int swap32(unsigned int x)
@@ -88,7 +106,8 @@ static inline ulong64 time_elapsed(const struct timespec *tm0,
 
 static inline void time_advance(struct timespec *tm, long64 micro_sec)
 {
-	long64 sec, rem_micro;
+	long64 sec;
+	long rem_micro;
 
 	sec = micro_sec / 1000000;
 	rem_micro = micro_sec % 1000000;

@@ -402,6 +402,7 @@ void ecc_get_public(const unsigned char *skey, struct ecc_key *ekey)
 	compute_public(ekey, 0);
 }
 
+#ifdef __linux__
 int ecc_genkey(struct ecc_key *ecckey, int secs)
 {
 	int retv, buflen;
@@ -431,6 +432,7 @@ int ecc_genkey(struct ecc_key *ecckey, int secs)
 
 	return retv;
 }
+#endif /* __linux__ */
 
 int ecc_genkey_py(struct ecc_key *ecckey, const unsigned char rnd[ECCKEY_LEN])
 {
@@ -491,7 +493,7 @@ int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
 }
 
 #ifdef __linux__
-static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
+static void rand32bytes(unsigned int rnd[ECCKEY_INT_LEN])
 {
 	int buflen;
 	unsigned char *buf;
@@ -538,7 +540,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	do {
 		do {
-			rnd32byte(kx);
+			rand32bytes(kx);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp(k, epn) >= 0);
 
