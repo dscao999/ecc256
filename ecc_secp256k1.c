@@ -508,6 +508,7 @@ static void rnd32byte(unsigned int rnd[ECCKEY_INT_LEN])
 	alsa_random(rnd, (const unsigned char *)buf, buflen);
 	free(buf);
 }
+#endif /* __linux__ */
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
@@ -559,8 +560,6 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 	point_clear(&K);
 	mpz_clears(k, r, dst, k_inv, s, prikey, NULL);
 }
-#elif defined(_WIN64)
-#endif /* __linux__ */
 
 int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
