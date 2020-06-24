@@ -10,7 +10,6 @@
 #include "dscrc.h"
 #include "loglog.h"
 #include "base64.h"
-#include "alsarec.h"
 
 static inline int malloc_len(int len)
 {
@@ -70,7 +69,7 @@ static int key_process(struct keyparam *param, int action)
 	if (param->pass)
 		plen = strlen(param->pass);
 	if (action & GEN_KEY) {
-		ecc_genkey(&param->key, 5);
+		ecc_genkey(&param->key);
 		key_save2file(param);
 	} else if (action & IMPORT_KEY) {
 		retv = ecc_key_import(&param->key, param->keystr);
@@ -268,7 +267,6 @@ int main(int argc, char *argv[])
 	extern int optind, opterr, optopt;
 	extern char *optarg;
 
-	alsa_init(NULL);
 	ecc_init();
 	kparam = malloc(sizeof(struct keyparam));
 	if (!check_pointer(kparam))
@@ -404,6 +402,5 @@ int main(int argc, char *argv[])
 
 	free(buffer);
 	free(kparam);
-	alsa_exit();
 	return retv;
 }

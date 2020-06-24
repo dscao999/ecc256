@@ -8,10 +8,8 @@
 #include <gmp.h>
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 #include "ecc_secp256k1.h"
-#ifdef __linux__
-#include "alsarec.h"
-#endif /* __linux__ */
 #include "base64.h"
 #include "dscrc.h"
 #include "dsaes.h"
@@ -38,6 +36,8 @@ static mpz_t epm, epn, sroot;
 static const unsigned short b = 7;
 
 #include "gmp_wrapper.h"
+
+int rand32bytes(unsigned char rndbuf[32], int strong);
 
 static inline int moduli_3_4(void)
 {
@@ -402,52 +402,22 @@ void ecc_get_public(const unsigned char *skey, struct ecc_key *ekey)
 	compute_public(ekey, 0);
 }
 
-#ifdef __linux__
-int ecc_genkey(struct ecc_key *ecckey, int secs)
+int ecc_genkey(struct ecc_key *ecckey)
 {
-	int retv, buflen;
+	int retv;
 	mpz_t x;
-	unsigned char *abuf;
 
 	mpz_init2(x, BITLEN);
-
-	buflen = alsa_reclen(secs);
-	if (buflen <= 0) {
-		logmsg(LOG_ERR, "Cannot make audio record.\n");
-		return -1;
-	}
-	abuf = malloc(buflen);
-	if (!check_pointer(abuf))
-		exit(100);
 	do {
-		retv = alsa_record(secs, abuf, buflen);
-		alsa_random(ecckey->pr, (const unsigned char *)abuf, buflen);
+		retv = rand32bytes((unsigned char *)ecckey->pr, 1);
+		if (retv != 32)
+			return -1;
 		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
 	} while (mpz_cmp(x, epn) >= 0 || mpz_cmp_ui(x, 0) == 0);
-	free(abuf);
-
 	compute_public(ecckey, 0);
-
 	mpz_clear(x);
 
-	return retv;
-}
-#endif /* __linux__ */
-
-int ecc_genkey_py(struct ecc_key *ecckey, const unsigned char rnd[ECCKEY_LEN])
-{
-	mpz_t x;
-	int retv;
-
-	mpz_init2(x, BITLEN);
-	mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, rnd);
-	retv = mpz_cmp_ui(x, 0) != 0 && mpz_cmp(x, epn) < 0;
-	if (retv) {
-		memcpy(ecckey, rnd, ECCKEY_LEN);
-		compute_public(ecckey, 0);
-	}
-	mpz_clear(x);
-	return retv;
+	return 0;
 }
 
 void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
@@ -492,26 +462,6 @@ int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
 	return retv;
 }
 
-#ifdef __linux__
-static void rand32bytes(unsigned int rnd[ECCKEY_INT_LEN])
-{
-	int buflen;
-	unsigned char *buf;
-
-	buflen = alsa_reclen(1);
-	if (buflen <= 0) {
-		logmsg(LOG_ERR, "Cannot make audio record.\n");
-		exit(1);
-	}
-	buf = malloc(buflen);
-	if (!check_pointer(buf))
-		abort();
-	alsa_record(1, buf, buflen);
-	alsa_random(rnd, (const unsigned char *)buf, buflen);
-	free(buf);
-}
-#endif /* __linux__ */
-
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		CBYTE *mesg, int len)
 {
@@ -540,9 +490,9 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	do {
 		do {
-			rand32bytes(kx);
+			rand32bytes((unsigned char *)kx, 0);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
-		} while (mpz_cmp(k, epn) >= 0);
+		} while (mpz_cmp_ui(k, 0) == 0 || mpz_cmp(k, epn) >= 0);
 
 		point_x_num_G(&K, k);
 		mpz_mod(r, K.x, epn);

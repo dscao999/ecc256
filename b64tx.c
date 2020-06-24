@@ -2,32 +2,24 @@
 #include <errno.h>
 #include <assert.h>
 #include <gmp.h>
-#include "alsarec.h"
+#include <stdlib.h>
 #include "base64.h"
+
+int rand32bytes(unsigned char rndbuf[32], int strong);
 
 int main(int argc, char *argv[])
 {
-	int retv = 0, count, buflen;
+	int retv = 0, count;
 	char strbuf[64], *bytes;
-	unsigned char *buf;
 	unsigned int dgst[8], bkdgst[8];
-	int sec = 0, i, len;
+	int strong = 0, i, len;
 	size_t numw;
-	const char *sdname = NULL;
 	mpz_t mbig;
 
 	if (argc > 1)
-		sec = atoi(argv[1]);
-	if (sec == 0)
-		sec = 5;
-	if (argc > 2)
-		sdname = argv[2];
+		strong = atoi(argv[1]);
 
-	alsa_init(sdname);
-	buflen = alsa_reclen(sec);
-	buf = malloc(buflen);
-
-	if (sec < 0) {
+	if (strong < 0) {
 		mpz_init(mbig);
 		printf("Please Input a big integer: ");
 		mpz_inp_str(mbig, stdin, 10);
@@ -56,11 +48,7 @@ int main(int argc, char *argv[])
 	}
 	count = 0;
 	do {
-		if (alsa_record(sec, (unsigned char *)buf, buflen) < 0) {
-			fprintf(stderr, "Failed to get an random number!\n");
-			break;
-		}
-		alsa_random(dgst, buf, buflen);
+		rand32bytes((unsigned char *)dgst, strong);
 		bin2str_b64(strbuf, 64, (const unsigned char *)dgst, 32);
 		printf("%s\n", strbuf);
 		str2bin_b64((unsigned char *)bkdgst, 32, strbuf);

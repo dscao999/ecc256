@@ -37,7 +37,6 @@ typedef long long long64;
 #if defined(_WIN64)
 #define CLOCK_REALTIME	0
 C_CALL void clock_gettime(int clock, struct timespec* tm);
-C_CALL void rand32bytes(unsigned char* rnd);
 #endif
 
 static inline unsigned int swap32(unsigned int x)

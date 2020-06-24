@@ -20,9 +20,9 @@ clean:
 	rm -f *.o rnda sha ecc aes crc crctbl b64tx ripe
 	rm -f $(deps)
 
-ecc: ecc.o ecc_secp256k1.o alsarec.o sha256.o dscrc.o base64.o \
+ecc: ecc.o ecc_secp256k1.o rand32bytes.o sha256.o dscrc.o base64.o \
 	dsaes.o ripemd160.o
-	$(LINK.o) $^ -lgmp -lasound -o $@
+	$(LINK.o) $^ -lgmp -o $@
 
 aes: aes.o dsaes.o
 	$(LINK.o) $^ -o $@
@@ -33,8 +33,8 @@ crc: crc.o dscrc.o
 #crctbl: crc_table.o
 #	$(LINK.o) $^ -o $@
 
-b64tx: b64tx.o alsarec.o sha256.o base64.o
-	$(LINK.o) $^ -lasound -lgmp -o $@
+b64tx: b64tx.o rand32bytes.o sha256.o base64.o
+	$(LINK.o) $^ -lgmp -o $@
 
 ripe: ripemd.o ripemd160.o base64.o
 	$(LINK.o) $^ -o $@
@@ -49,5 +49,5 @@ release: LDFLAGS += -Wl,-O2
 
 -include $(deps)
 
-../lib/libecc256.so: ecc_secp256k1.o sha256.o dscrc.o base64.o dsaes.o ripemd160.o alsarec.o
-	$(LINK.o) -shared $^  -lasound -lgmp -o $@
+../lib/libecc256.so: ecc_secp256k1.o sha256.o dscrc.o base64.o dsaes.o ripemd160.o rand32bytes.o
+	$(LINK.o) -shared $^  -lgmp -o $@

@@ -36,10 +36,7 @@ static inline int ecc_pubkey_only(const struct ecc_key *ekey)
 			return 0;
 	return 1;
 }
-int ecc_genkey_py(struct ecc_key *ecckey, const unsigned char rnd[ECCKEY_LEN]);
-#ifdef __linux__
-int ecc_genkey(struct ecc_key *ecckey, int secs);
-#endif
+int ecc_genkey(struct ecc_key *ecckey);
 void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
 		const char *ps, int len);
 int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
