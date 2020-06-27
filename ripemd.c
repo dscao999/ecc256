@@ -12,10 +12,8 @@ int main(int argc, char *argv[])
 {
 	char *msgbuf, *fname;
 	struct ripemd160 *ripe;
-	int i, len;
+	int i;
 	FILE *fin;
-	char buf[128];
-	unsigned int dgst[5];
 	struct stat fst;
 	size_t flen;
 
@@ -59,14 +57,6 @@ int main(int argc, char *argv[])
 		printf("\n");
 	}
 	fclose(fin);
-
-	len = bin2str_b64(buf, 128, (unsigned char *)ripe->H, 20);
-	buf[len] = 0;
-	printf("%s\n", buf);
-	str2bin_b64((unsigned char *)dgst, 20, buf);
-	if (memcmp(dgst, ripe->H, 20) != 0)
-		fprintf(stderr, "base64 failed!\n");
-	ripemd160_exit(ripe);
 
 	return 0;
 }

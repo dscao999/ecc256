@@ -3,7 +3,7 @@
 #include <errno.h>
 #include "loglog.h"
 
-int rand32bytes(unsigned char rndbuf[32], int strong)
+int rand32bytes(unsigned char *rndbuf, int len, int strong)
 {
 	const char *rnddev = "/dev/urandom";
 	int numbytes = 0;
@@ -17,7 +17,7 @@ int rand32bytes(unsigned char rndbuf[32], int strong)
 				strerror(errno));
 		return numbytes;
 	}
-	numbytes = fread(rndbuf, 1, 32, rndh);
+	numbytes = fread(rndbuf, 1, len, rndh);
 	fclose(rndh);
 	return numbytes;
 }

@@ -17,7 +17,6 @@ int main(int argc, char *argv[])
 	int i, nb;
 	struct sha256 *hd;
 	char *buf, b64str[64];
-	unsigned int M[8];
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s file\n", argv[0]);
@@ -38,11 +37,6 @@ int main(int argc, char *argv[])
 	for (i = 0; i < 8; i++)
 		printf("%08x", hd->H[i]);
 	printf("\n");
-	nb = bin2str_b64(b64str, 64, (unsigned char *)hd->H, 32);
-	b64str[nb] = 0;
-	str2bin_b64((unsigned char *)M, 32, b64str);
-	if (memcmp(hd->H, M, 32) != 0)
-		fprintf(stderr, "Bad base64 operation!\n");
 
 	if (flen < 1048576) {
 		sha256_reset(hd);

@@ -119,5 +119,5 @@ int bin2str_b64(char *strbuf, int len, const unsigned char *binbytes, int num)
 		*p64 = 0;
 	else
 		*(strbuf+len-1) = 0;
-	return p64 - strbuf;
+	return (int)(p64 - strbuf);
 }

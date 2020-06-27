@@ -177,11 +177,11 @@ void ripemd160_fdgst(struct ripemd160 *ripe, FILE *fin)
 	unsigned int M[16];
 	int nbytes, done;
 
-	nbytes = fread(buf.str, 1, 64, fin);
+	nbytes = (int)fread(buf.str, 1, 64, fin);
 	while (nbytes == 64) {
 		ripe_block(ripe, (unsigned int *)buf.M);
 		len += nbytes;
-		nbytes = fread(buf.str, 1, 64, fin);
+		nbytes = (int)fread(buf.str, 1, 64, fin);
 	}
 	if (nbytes == 0 && ferror(fin)) {
 		fprintf(stderr, "Read file error!\n");

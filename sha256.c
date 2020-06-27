@@ -156,11 +156,11 @@ void sha256_file(struct sha256 *hd, FILE *fin)
 	unsigned int M[SHA_BLOCK_LEN/4];
 	int nbytes, done;
 
-	nbytes = fread(buf.str, 1, SHA_BLOCK_LEN, fin);
+	nbytes = (int)fread(buf.str, 1, SHA_BLOCK_LEN, fin);
 	while (nbytes == SHA_BLOCK_LEN) {
 		sha256_block(hd, (unsigned char *)buf.M);
 		len += nbytes;
-		nbytes = fread(buf.str, 1, SHA_BLOCK_LEN, fin);
+		nbytes = (int)fread(buf.str, 1, SHA_BLOCK_LEN, fin);
 	}
 	if (nbytes == 0 && ferror(fin)) {
 		fprintf(stderr, "Read file error!\n");

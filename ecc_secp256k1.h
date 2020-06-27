@@ -6,6 +6,7 @@
  * Dashi Cao, dscao999@hotmail.com, caods1@lenovo.com
  *
  */
+#include "miscs.h"
 
 #define ECCKEY_INT_LEN	8
 #define ECCKEY_LEN	(ECCKEY_INT_LEN*4)
@@ -25,7 +26,7 @@ struct ecc_sig {
 int ecc_sig2str(char *buf, int buflen, const struct ecc_sig *sig);
 int ecc_str2sig(struct ecc_sig *sig, const char *buf);
 
-void ecc_init(void);
+__declspec(dllexport) void __cdecl ecc_init(void);
 void ecc_exit(void);
 
 static inline int ecc_pubkey_only(const struct ecc_key *ekey)
@@ -36,7 +37,7 @@ static inline int ecc_pubkey_only(const struct ecc_key *ekey)
 			return 0;
 	return 1;
 }
-int ecc_genkey(struct ecc_key *ecckey);
+__declspec(dllexport) int __cdecl ecc_genkey(struct ecc_key *ecckey);
 void ecc_writkey(const struct ecc_key *ecckey, unsigned char bt[48],
 		const char *ps, int len);
 int ecc_readkey(struct ecc_key *ecckey, const unsigned char bt[48],
@@ -50,7 +51,7 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str);
 int ecc_key_import_str(unsigned char ecckey[96], const char *str);
 
 int ecc_key_hash(char *str, int len, const struct ecc_key *ecckey);
-int ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
+__declspec(dllexport) int __cdecl ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
@@ -59,7 +60,9 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
 
 void ecc_get_public_y(struct ecc_key *ecckey, int flag);
-void ecc_get_public(const unsigned char *skey, struct ecc_key *ecckey);
+__declspec(dllexport) void __cdecl ecc_get_public(const unsigned char *skey, struct ecc_key *ecckey);
+
+int rand32bytes(unsigned char *rndbuf, int len, int strong);
 
 int ecc_gen_table(void);
 void ecc_prn_table(void);

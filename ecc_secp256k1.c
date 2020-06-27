@@ -5,7 +5,11 @@
  *
  */
 #include <stdio.h>
+#if defined(__linux__)
 #include <gmp.h>
+#elif defined(_WIN64)
+#include "mpir.h"
+#endif
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -37,15 +41,13 @@ static const unsigned short b = 7;
 
 #include "gmp_wrapper.h"
 
-int rand32bytes(unsigned char rndbuf[32], int strong);
-
 static inline int moduli_3_4(void)
 {
 	mpz_t r;
 	int rm;
 
 	mpz_init2(r, 256);
-	rm = mpz_mod_ui(r, epm, 4);
+	rm = (int)mpz_mod_ui(r, epm, 4);
 	mpz_clear(r);
 	return rm == 3;
 }
@@ -63,7 +65,7 @@ static void a_exp(mpz_t x, const mpz_t a, const mpz_t e)
 	mpz_set_ui(sum, 1);
 	mpz_set(factor, a);
 	mpz_export(w, &rlen, 1, 4, 0, 0, e);
-	for (i = rlen-1; i >= 0; i--) {
+	for (i = (int)(rlen-1); i >= 0; i--) {
 		cw = w[i];
 		for (j = 0; j < 32; j++) {
 			if ((cw & 1) == 1)
@@ -258,7 +260,7 @@ static void point_x_num_G(struct curve_point *R, mpz_t num)
 	mpz_export(x, &count, 1, 4, 0, 0, num);
 	assert(count <= ECCKEY_INT_LEN);
 	idx = 0;
-	for (i = count-1; i >= 0; i--) {
+	for (i = (int)(count-1); i >= 0; i--) {
 		cnum = x[i];
 		for (j = 0; j < 32; j++) {
 			if (cnum & 1)
@@ -284,7 +286,7 @@ static void point_x_num_nG(struct curve_point *R, const mpz_t num,
 
 	mpz_export(x, &count, 1, 4, 0, 0, num);
 	assert(count <= ECCKEY_INT_LEN);
-	for (i = count-1; i >= 0; i--) {
+	for (i = (int)(count-1); i >= 0; i--) {
 		cnum = x[i];
 		for (j = 0; j < 32; j++) {
 			if (cnum & 1)
@@ -409,7 +411,7 @@ int ecc_genkey(struct ecc_key *ecckey)
 
 	mpz_init2(x, BITLEN);
 	do {
-		retv = rand32bytes((unsigned char *)ecckey->pr, 1);
+		retv = rand32bytes((unsigned char *)ecckey->pr, 32, 1);
 		if (retv != 32)
 			return -1;
 		mpz_import(x, ECCKEY_INT_LEN, 1, 4, 0, 0, ecckey->pr);
@@ -490,7 +492,7 @@ void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 
 	do {
 		do {
-			rand32bytes((unsigned char *)kx, 0);
+			rand32bytes((unsigned char *)kx, 32, 0);
 			mpz_import(k, ECCKEY_INT_LEN, 1, 4, 0, 0, kx);
 		} while (mpz_cmp_ui(k, 0) == 0 || mpz_cmp(k, epn) >= 0);
 
@@ -716,7 +718,7 @@ int ecc_str2sig(struct ecc_sig *sig, const char *str)
 	comma = strchr(str, ',');
 	if (!comma)
 		return -1;
-	r_len = comma - str;
+	r_len = (int)(comma - str);
 	r_str = malloc(r_len+1);
 	memcpy(r_str, str, r_len);
 	r_str[r_len] = 0;

@@ -189,3 +189,11 @@ unsigned int crc32(const unsigned char *bytes, int len)
 
 	return crc;
 }
+
+int crc32_check(const unsigned char* bytes, int len, unsigned int crc)
+{
+	unsigned int ncrc;
+
+	ncrc = crc32(bytes, len);
+	return ncrc == crc;
+}
