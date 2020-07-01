@@ -2,6 +2,7 @@
 #include <string.h>
 #include <errno.h>
 #include "loglog.h"
+#include "ecc_secp256k1.h"
 
 int rand32bytes(unsigned char *rndbuf, int len, int strong)
 {

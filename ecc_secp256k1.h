@@ -51,7 +51,8 @@ int ecc_key_import(struct ecc_key *ecckey, const char *str);
 int ecc_key_import_str(unsigned char ecckey[96], const char *str);
 
 int ecc_key_hash(char *str, int len, const struct ecc_key *ecckey);
-__declspec(dllexport) int __cdecl ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
+__declspec(dllexport) int __cdecl
+ecc_key_hash_str(char *str, int len, const unsigned char ekey[96]);
 
 void ecc_sign(struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
@@ -60,9 +61,12 @@ int ecc_verify(const struct ecc_sig *sig, const struct ecc_key *key,
 		const unsigned char *mesg, int len);
 
 void ecc_get_public_y(struct ecc_key *ecckey, int flag);
-__declspec(dllexport) void __cdecl ecc_get_public(const unsigned char *skey, struct ecc_key *ecckey);
 
-int rand32bytes(unsigned char *rndbuf, int len, int strong);
+__declspec(dllexport) void __cdecl
+ecc_get_public(const unsigned char *skey, struct ecc_key *ecckey);
+
+__declspec(dllexport) int __cdecl
+rand32bytes(unsigned char *rndbuf, int len, int strong);
 
 int ecc_gen_table(void);
 void ecc_prn_table(void);

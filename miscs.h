@@ -13,7 +13,6 @@ typedef long long64;
 #define __attribute__(x)
 #define likely(x) (x)
 #define unlikely(x)	(x)
-#define DLLExport(retype) __declspec(dllexport) retype __cdecl
 typedef unsigned long long ulong64;
 typedef long long long64;
 
