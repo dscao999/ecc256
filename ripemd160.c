@@ -16,8 +16,10 @@ ripe_f(int j, unsigned int x, unsigned int y, unsigned int z)
 		return (x & z) | (y & (~z));
 	case 4:
 		return x ^ (y | (~z));
+	default:
+		assert(0);
 	}
-	assert(0);
+	return 0;
 }
 
 static const unsigned int K[2][5] = {
