@@ -5,10 +5,13 @@ CFLAGS ?= -Wall -g
 CFLAGS += -fPIC -I../include
 LDFLAGS += -g
 
-all:	rnda sha ecc aes crc b64tx ripe
+all:	rnda sha ecc aes crc b64tx ripe md5
 
 srcs = $(wildcard *.c)
 deps = $(srcs:.c=.d)
+
+md5: txmd5.o md5.o
+	$(LINK.o) $^ -o $@
 
 rnda: capture.o alsarec.o sha256.o
 	$(LINK.o) $^ -lasound -o $@
@@ -17,7 +20,7 @@ sha: sha.o sha256.o base64.o
 	$(LINK.o) $^ -o $@
 
 clean:
-	rm -f *.o rnda sha ecc aes crc crctbl b64tx ripe
+	rm -f *.o rnda sha ecc aes crc crctbl b64tx ripe md5
 	rm -f $(deps)
 
 ecc: ecc.o ecc_secp256k1.o rand32bytes.o sha256.o dscrc.o base64.o \
